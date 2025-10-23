@@ -87,7 +87,7 @@ class RecordingService {
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${recordingToken}`
+            'x-recording-token': recordingToken
           },
           body: formData
         }
