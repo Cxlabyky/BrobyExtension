@@ -9,6 +9,11 @@ class BrobyVetsSidebar {
     this.currentState = 'ready'; // ready, recording, processing, completed
     this.timerSeconds = 0;
     this.timerInterval = null;
+    this.recordingManager = new RecordingManager();
+    this.consultationId = null;
+    this.sessionId = null;
+    this.summaryPollInterval = null;
+    this.isPaused = false;
     this.init();
   }
 
@@ -289,17 +294,75 @@ class BrobyVetsSidebar {
     document.getElementById(`${state}-state`).style.display = 'flex';
   }
 
-  startRecording() {
+  async startRecording() {
     if (!this.currentPatient) {
       alert('❌ No patient selected. Please select a patient in EzyVet first.');
       return;
     }
 
     console.log('▶️ Starting recording for:', this.currentPatient.name);
+
+    // Check if setup was completed
+    console.log('🔍 Checking if microphone setup is complete...');
+    const { setupComplete } = await chrome.storage.local.get('setupComplete');
+
+    if (!setupComplete) {
+      console.log('⚠️ Setup not complete - opening setup page');
+      chrome.tabs.create({ url: 'setup.html' });
+      alert('Please complete the microphone setup in the tab that just opened, then try again.');
+      return;
+    }
+
+    // Check actual permission state
+    console.log('🔐 Checking microphone permission state...');
+    try {
+      const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
+      console.log('🔐 Permission state:', permissionStatus.state);
+
+      if (permissionStatus.state === 'denied') {
+        console.error('❌ Microphone permission was denied');
+        chrome.tabs.create({ url: 'setup.html' });
+        alert('Microphone permission was denied. Please allow access in the tab that just opened, then try again.');
+        return;
+      }
+
+      if (permissionStatus.state === 'prompt') {
+        console.warn('⚠️ Permission still in prompt state - opening setup page');
+        chrome.tabs.create({ url: 'setup.html' });
+        alert('Please allow microphone access in the tab that just opened, then try again.');
+        return;
+      }
+    } catch (permError) {
+      console.warn('⚠️ Could not query permission status:', permError);
+      // Continue anyway - getUserMedia will handle it
+    }
+
+    // Permission granted - proceed with recording workflow
+    console.log('✅ Permission checks passed, starting recording workflow...');
+
+    const result = await this.recordingManager.startRecording({
+      name: this.currentPatient.name,
+      id: this.currentPatient.id,
+      species: this.currentPatient.species
+    });
+
+    if (!result.success) {
+      alert(`❌ Failed to start recording: ${result.error}`);
+      return;
+    }
+
+    // Store consultation and session IDs
+    this.consultationId = result.consultationId;
+    this.sessionId = result.sessionId;
+
+    console.log('✅ Recording started:', { consultationId: this.consultationId, sessionId: this.sessionId });
+
+    // Show recording state
     this.showState('recording');
 
     // Start timer
     this.timerSeconds = 0;
+    this.isPaused = false;
     this.updateTimer();
     this.timerInterval = setInterval(() => {
       this.timerSeconds++;
@@ -321,25 +384,36 @@ class BrobyVetsSidebar {
   }
 
   pauseRecording() {
-    console.log('⏸️ Pausing recording');
-
-    if (this.timerInterval) {
-      clearInterval(this.timerInterval);
-      this.timerInterval = null;
-    }
-
     const pauseBtn = document.getElementById('pauseBtn');
-    if (pauseBtn) {
-      if (pauseBtn.textContent === '⏸️ Pause') {
-        pauseBtn.textContent = '▶️ Resume';
-      } else {
-        pauseBtn.textContent = '⏸️ Pause';
-        // Resume timer
-        this.timerInterval = setInterval(() => {
-          this.timerSeconds++;
-          this.updateTimer();
-        }, 1000);
+    if (!pauseBtn) return;
+
+    if (!this.isPaused) {
+      // Pause
+      console.log('⏸️ Pausing recording');
+      this.recordingManager.pauseRecording();
+
+      // Stop timer
+      if (this.timerInterval) {
+        clearInterval(this.timerInterval);
+        this.timerInterval = null;
       }
+
+      this.isPaused = true;
+      pauseBtn.textContent = '▶️ Resume';
+
+    } else {
+      // Resume
+      console.log('▶️ Resuming recording');
+      this.recordingManager.resumeRecording();
+
+      // Resume timer
+      this.timerInterval = setInterval(() => {
+        this.timerSeconds++;
+        this.updateTimer();
+      }, 1000);
+
+      this.isPaused = false;
+      pauseBtn.textContent = '⏸️ Pause';
     }
   }
 
@@ -355,32 +429,100 @@ class BrobyVetsSidebar {
     // Show processing state
     this.showState('processing');
 
-    // Simulate processing (3 seconds)
-    // In production, this will call the backend API
-    setTimeout(() => {
-      this.showCompletedState();
-    }, 3000);
+    // Stop recording and complete session
+    const result = await this.recordingManager.stopRecording();
+
+    if (!result.success) {
+      alert(`❌ Failed to submit recording: ${result.error}`);
+      // Go back to recording state
+      this.showState('recording');
+      // Restart timer
+      this.timerInterval = setInterval(() => {
+        this.timerSeconds++;
+        this.updateTimer();
+      }, 1000);
+      return;
+    }
+
+    console.log('✅ Recording submitted, waiting for summary...');
+
+    // Start polling for summary
+    this.startSummaryPolling();
   }
 
-  showCompletedState() {
+  startSummaryPolling() {
+    console.log('🔄 Starting summary polling...');
+
+    let pollAttempts = 0;
+    const maxAttempts = 60; // 60 attempts = 5 minutes max (5 second intervals)
+
+    this.summaryPollInterval = setInterval(async () => {
+      pollAttempts++;
+      console.log(`📊 Poll attempt ${pollAttempts}/${maxAttempts} for consultation ${this.consultationId}`);
+
+      try {
+        const result = await ConsultationService.getConsultation(this.consultationId);
+
+        if (!result.success) {
+          console.error('❌ Failed to get consultation:', result.error);
+          return;
+        }
+
+        const consultation = result.consultation;
+        console.log('📋 Consultation status:', consultation.status);
+
+        // Check if summary is ready
+        if (consultation.summary && consultation.summary.trim() !== '') {
+          console.log('✅ Summary ready!');
+          clearInterval(this.summaryPollInterval);
+          this.summaryPollInterval = null;
+          this.showCompletedState(consultation.summary);
+        } else if (pollAttempts >= maxAttempts) {
+          console.error('❌ Summary polling timeout');
+          clearInterval(this.summaryPollInterval);
+          this.summaryPollInterval = null;
+          alert('⚠️ Summary generation took longer than expected. Please refresh to check status.');
+          this.showState('ready');
+        }
+
+      } catch (error) {
+        console.error('❌ Polling error:', error);
+      }
+
+    }, 5000); // Poll every 5 seconds
+  }
+
+  showCompletedState(summary) {
     console.log('✅ Recording complete');
     this.showState('completed');
 
-    // In production, the summary will come from the backend
-    // For now, it's already in the HTML as mock data
+    // Display the real summary from backend
+    const summaryContent = document.getElementById('summaryContent');
+    if (summaryContent && summary) {
+      summaryContent.innerHTML = summary.replace(/\n/g, '<br>');
+    }
   }
 
   startNewConsult() {
     console.log('🆕 Starting new consult');
 
-    // Reset timer
+    // Stop any active polling
+    if (this.summaryPollInterval) {
+      clearInterval(this.summaryPollInterval);
+      this.summaryPollInterval = null;
+    }
+
+    // Reset state
+    this.consultationId = null;
+    this.sessionId = null;
     this.timerSeconds = 0;
+    this.isPaused = false;
     this.updateTimer();
 
     // Go back to ready state
     this.showState('ready');
 
-    // Update pause button text
+    // Reset pause button text
     const pauseBtn = document.getElementById('pauseBtn');
     if (pauseBtn) {
       pauseBtn.textContent = '⏸️ Pause';

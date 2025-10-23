@@ -30,7 +30,10 @@ const CONFIG = {
     // Recordings
     CREATE_RECORDING_SESSION: '/recordings/sessions/new',
     UPLOAD_CHUNK: (sessionId) => `/recordings/sessions/${sessionId}/chunks`,
+    UPLOAD_CHUNK_BATCH: (sessionId) => `/recordings/sessions/${sessionId}/chunks/batch`,
     COMPLETE_RECORDING: (sessionId) => `/recordings/sessions/${sessionId}/complete`,
+    STOP_RECORDING: (sessionId) => `/recordings/sessions/${sessionId}/stop`,
+    GET_CHUNKS: (sessionId) => `/recordings/sessions/${sessionId}/chunks`,
   },
 
   // Storage keys
