@@ -145,7 +145,7 @@ class ConsultationService {
    */
   static async generateSummary(consultationId) {
     try {
-      console.log('🤖 Generating AI summary for:', consultationId);
+      console.log('🤖 TRIGGER: Generating AI summary for consultation:', consultationId);
 
       const authHeaders = await TokenManager.getAuthHeaders();
 
@@ -160,14 +160,14 @@ class ConsultationService {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('❌ Failed to generate summary:', data.error);
+        console.error('❌ Summary generation failed:', data.error);
         return {
           success: false,
           error: data.error || 'Failed to generate summary'
         };
       }
 
-      console.log('✅ Summary generated:', data.data.summary?.length, 'characters');
+      console.log('✅ Summary generated:', data.data?.summary?.length, 'characters');
 
       return {
         success: true,
@@ -175,10 +175,10 @@ class ConsultationService {
       };
 
     } catch (error) {
-      console.error('❌ Generate summary error:', error);
+      console.error('❌ Summary generation error:', error);
       return {
         success: false,
-        error: error.message
+        error: error.message || 'Network error'
       };
     }
   }
