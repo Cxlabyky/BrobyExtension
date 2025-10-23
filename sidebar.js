@@ -456,8 +456,18 @@ class BrobyVetsSidebar {
         console.log('✅ Summary generated!');
         this.showCompletedState(summaryResult.summary);
       } else {
-        console.log('⚠️ Fallback to polling...', summaryResult.error);
-        this.startSummaryPolling();
+        console.log('⚠️ Summary generation failed:', summaryResult.error);
+
+        // Check if it's a transcription issue
+        if (summaryResult.error?.includes('No transcript') || summaryResult.error?.includes('transcription')) {
+          // Show error to user
+          this.showState('ready');
+          alert('⚠️ Recording failed to transcribe.\n\nPossible causes:\n- Recording too short (need 15+ seconds)\n- No audio detected\n- Background transcription issue\n\nPlease try recording again and speak clearly into the microphone.');
+        } else {
+          // Other errors - fallback to polling
+          console.log('⚠️ Fallback to polling...');
+          this.startSummaryPolling();
+        }
       }
     } catch (error) {
       console.error('❌ Error, falling back to polling...', error);
