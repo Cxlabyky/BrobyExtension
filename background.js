@@ -141,17 +141,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   // Forward audio chunks from offscreen to sidebar
+  // ONLY forward if coming from offscreen document (sender.url contains 'offscreen.html')
   if (message.type === 'AUDIO_CHUNK') {
-    console.log('📦 Forwarding audio chunk to sidebar');
-    // Broadcast to sidebar
-    chrome.runtime.sendMessage(message);
+    if (sender.url && sender.url.includes('offscreen.html')) {
+      console.log('📦 Forwarding audio chunk from offscreen to sidebar');
+      // Broadcast to sidebar
+      chrome.runtime.sendMessage(message);
+    } else {
+      console.log('⚠️ Ignoring AUDIO_CHUNK from non-offscreen source');
+    }
     return false;
   }
 
   // Forward recording errors from offscreen to sidebar
   if (message.type === 'RECORDING_ERROR') {
-    console.log('❌ Forwarding recording error to sidebar');
-    chrome.runtime.sendMessage(message);
+    if (sender.url && sender.url.includes('offscreen.html')) {
+      console.log('❌ Forwarding recording error from offscreen to sidebar');
+      chrome.runtime.sendMessage(message);
+    }
     return false;
   }
 
