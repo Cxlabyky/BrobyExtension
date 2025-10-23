@@ -167,7 +167,7 @@ class ConsultationService {
         };
       }
 
-      console.log('✅ Summary generated successfully');
+      console.log('✅ Summary generated:', data.data.summary?.length, 'characters');
 
       return {
         success: true,

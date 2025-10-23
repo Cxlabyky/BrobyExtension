@@ -451,10 +451,10 @@ class BrobyVetsSidebar {
     const summaryResult = await ConsultationService.generateSummary(this.consultationId);
 
     if (summaryResult.success) {
-      console.log('✅ Summary generated successfully');
+      console.log('✅ Summary generated immediately');
       this.showCompletedState(summaryResult.summary);
     } else {
-      console.log('⚠️ Summary generation failed, fallback to polling...', summaryResult.error);
+      console.log('⚠️ Summary not immediate, starting polling...', summaryResult.error);
       // Fallback to polling if direct generation fails
       this.startSummaryPolling();
     }
