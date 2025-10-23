@@ -44,15 +44,122 @@
 
 <!-- Main Content (requires auth) -->
 <div id="main-content" style="display: none;">
-<div class="recording-section">
+
+<!-- Ready State: Patient selected, ready to start -->
+<div id="ready-state" class="state-view">
 <div class="patient-info">
 <div class="patient-name">Select a patient in EzyVet</div>
 <div class="patient-details"></div>
 </div>
-<div class="start-state">
+<div class="start-section">
 <button class="btn-start" id="startBtn">▶ Start Consult</button>
 </div>
 </div>
+
+<!-- Recording State: Active recording with timer and waveform -->
+<div id="recording-state" class="state-view" style="display: none;">
+<div class="patient-info">
+<div class="patient-name">Bunny</div>
+<div class="patient-details">Dog • ID: 12345 • 23/10/2025</div>
+</div>
+
+<div class="recording-badge">
+<div class="recording-dot"></div>
+<span>Recording</span>
+</div>
+
+<div class="timer" id="timer">00:00:00</div>
+
+<div class="waveform">
+<div class="waveform-bar"></div>
+<div class="waveform-bar"></div>
+<div class="waveform-bar"></div>
+<div class="waveform-bar"></div>
+<div class="waveform-bar"></div>
+<div class="waveform-bar"></div>
+<div class="waveform-bar"></div>
+<div class="waveform-bar"></div>
+</div>
+
+<div class="controls">
+<button class="btn-secondary" id="pauseBtn">⏸️ Pause</button>
+<button class="btn-primary" id="submitBtn">✓ Submit</button>
+</div>
+
+<div class="section">
+<div class="section-header">
+<span>📷</span>
+<span>Photos</span>
+<span class="badge">0</span>
+</div>
+<div class="photos-grid">
+<div class="photo-box">+</div>
+</div>
+</div>
+
+<div class="section">
+<div class="section-header">
+<span>📋</span>
+<span>Template</span>
+<span style="margin-left: auto;">▼</span>
+</div>
+<div class="section-content">General Checkup</div>
+</div>
+</div>
+
+<!-- Processing State: Generating summary -->
+<div id="processing-state" class="state-view" style="display: none;">
+<div class="patient-info">
+<div class="patient-name">Bunny</div>
+<div class="patient-details">Dog • ID: 12345 • 23/10/2025</div>
+</div>
+
+<div class="processing-content">
+<div class="processing-spinner">
+<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#1FC7CA" stroke-width="2">
+<circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
+<path d="M12 2 A10 10 0 0 1 22 12" stroke-linecap="round">
+<animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
+</path>
+</svg>
+</div>
+<div class="processing-text">Generating AI Summary...</div>
+<div class="processing-subtext">This may take a few moments</div>
+</div>
+</div>
+
+<!-- Completed State: Summary generated -->
+<div id="completed-state" class="state-view" style="display: none;">
+<div class="patient-info">
+<div class="patient-name">Bunny</div>
+<div class="patient-details">Dog • ID: 12345 • 23/10/2025</div>
+</div>
+
+<div class="completed-badge">
+<span>✓</span>
+<span>Consultation Complete</span>
+</div>
+
+<div class="summary-section">
+<div class="summary-header">
+<span>📝</span>
+<span>AI Summary</span>
+</div>
+<div class="summary-content" id="summaryContent">
+<p><strong>Chief Complaint:</strong> Annual wellness checkup</p>
+<p><strong>History:</strong> 3-year-old spayed female Labrador. No current medications. Up to date on vaccinations.</p>
+<p><strong>Physical Exam:</strong> Alert and responsive. BCS 5/9. Heart rate 90 bpm, respiratory rate 24 bpm. No abnormalities detected.</p>
+<p><strong>Assessment:</strong> Healthy adult dog. Continue current preventative care regimen.</p>
+<p><strong>Plan:</strong> Return in 12 months for annual exam. Owner advised on dental care and nutrition.</p>
+</div>
+</div>
+
+<div class="completed-actions">
+<button class="btn-secondary" id="newConsultBtn">New Consult</button>
+<button class="btn-primary" id="insertBtn">Insert into EzyVet</button>
+</div>
+</div>
+
 </div>
 
 </div>
