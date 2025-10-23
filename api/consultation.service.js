@@ -139,6 +139,51 @@ class ConsultationService {
   }
 
   /**
+   * Generate AI summary for consultation
+   * @param {string} consultationId
+   * @returns {Promise<{success: boolean, summary?: string, error?: string}>}
+   */
+  static async generateSummary(consultationId) {
+    try {
+      console.log('🤖 Generating AI summary for:', consultationId);
+
+      const authHeaders = await TokenManager.getAuthHeaders();
+
+      const response = await fetch(
+        `${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.GENERATE_SUMMARY(consultationId)}`,
+        {
+          method: 'POST',
+          headers: authHeaders
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('❌ Failed to generate summary:', data.error);
+        return {
+          success: false,
+          error: data.error || 'Failed to generate summary'
+        };
+      }
+
+      console.log('✅ Summary generated successfully');
+
+      return {
+        success: true,
+        summary: data.data.summary
+      };
+
+    } catch (error) {
+      console.error('❌ Generate summary error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
    * Poll for AI summary generation completion
    * @param {string} consultationId
    * @param {number} maxAttempts - Maximum polling attempts (default 30)

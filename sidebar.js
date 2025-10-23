@@ -444,10 +444,20 @@ class BrobyVetsSidebar {
       return;
     }
 
-    console.log('✅ Recording submitted, waiting for summary...');
+    console.log('✅ Recording submitted');
 
-    // Start polling for summary
-    this.startSummaryPolling();
+    // Trigger AI summary generation
+    console.log('🤖 Triggering AI summary generation...');
+    const summaryResult = await ConsultationService.generateSummary(this.consultationId);
+
+    if (summaryResult.success) {
+      console.log('✅ Summary generated successfully');
+      this.showCompletedState(summaryResult.summary);
+    } else {
+      console.log('⚠️ Summary generation failed, fallback to polling...', summaryResult.error);
+      // Fallback to polling if direct generation fails
+      this.startSummaryPolling();
+    }
   }
 
   startSummaryPolling() {
