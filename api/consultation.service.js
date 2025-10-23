@@ -137,6 +137,75 @@ class ConsultationService {
       };
     }
   }
+
+  /**
+   * Poll for AI summary generation completion
+   * @param {string} consultationId
+   * @param {number} maxAttempts - Maximum polling attempts (default 30)
+   * @param {number} intervalMs - Polling interval in milliseconds (default 1000)
+   * @param {function} onProgress - Optional callback for progress updates
+   * @returns {Promise<{success: boolean, summary?: string, error?: string}>}
+   */
+  static async pollForSummary(consultationId, maxAttempts = 30, intervalMs = 1000, onProgress = null) {
+    console.log('🔄 Starting summary polling:', { consultationId, maxAttempts, intervalMs });
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        // Call progress callback if provided
+        if (onProgress) {
+          onProgress(attempt, maxAttempts);
+        }
+
+        console.log(`📡 Polling attempt ${attempt}/${maxAttempts}`);
+
+        const result = await this.getConsultation(consultationId);
+
+        if (!result.success) {
+          console.error('❌ Failed to fetch consultation:', result.error);
+          // Continue polling on fetch errors
+          await new Promise(resolve => setTimeout(resolve, intervalMs));
+          continue;
+        }
+
+        const consultation = result.consultation;
+
+        // Check if summary is ready
+        if (consultation.ai_summary && consultation.ai_summary.trim()) {
+          console.log('✅ Summary ready!', {
+            attempt,
+            summaryLength: consultation.ai_summary.length
+          });
+
+          return {
+            success: true,
+            summary: consultation.ai_summary,
+            transcript: consultation.full_transcript
+          };
+        }
+
+        console.log(`⏳ Summary not ready yet (attempt ${attempt}/${maxAttempts})`);
+
+        // Wait before next attempt (unless this was the last attempt)
+        if (attempt < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, intervalMs));
+        }
+
+      } catch (error) {
+        console.error(`❌ Polling error on attempt ${attempt}:`, error);
+        // Continue polling on errors
+        if (attempt < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, intervalMs));
+        }
+      }
+    }
+
+    // Timeout - summary not ready after max attempts
+    console.warn('⚠️ Summary polling timed out after', maxAttempts, 'attempts');
+    return {
+      success: false,
+      error: 'Summary generation timed out. The summary may still be processing.'
+    };
+  }
 }
 
 // Make ConsultationService available globally

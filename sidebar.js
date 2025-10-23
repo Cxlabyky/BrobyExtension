@@ -469,20 +469,28 @@ class BrobyVetsSidebar {
         }
 
         const consultation = result.consultation;
-        console.log('📋 Consultation status:', consultation.status);
+        console.log('📋 Consultation data:', {
+          id: consultation.id,
+          hasAiSummary: !!consultation.ai_summary,
+          aiSummaryLength: consultation.ai_summary?.length || 0
+        });
 
-        // Check if summary is ready
-        if (consultation.summary && consultation.summary.trim() !== '') {
-          console.log('✅ Summary ready!');
+        // Check if AI summary is ready
+        if (consultation.ai_summary && consultation.ai_summary.trim() !== '') {
+          console.log('✅ AI Summary ready!', {
+            summaryLength: consultation.ai_summary.length
+          });
           clearInterval(this.summaryPollInterval);
           this.summaryPollInterval = null;
-          this.showCompletedState(consultation.summary);
+          this.showCompletedState(consultation.ai_summary);
         } else if (pollAttempts >= maxAttempts) {
-          console.error('❌ Summary polling timeout');
+          console.error('❌ Summary polling timeout after', maxAttempts, 'attempts');
           clearInterval(this.summaryPollInterval);
           this.summaryPollInterval = null;
           alert('⚠️ Summary generation took longer than expected. Please refresh to check status.');
           this.showState('ready');
+        } else {
+          console.log(`⏳ AI summary not ready yet (attempt ${pollAttempts}/${maxAttempts})`);
         }
 
       } catch (error) {
@@ -493,14 +501,44 @@ class BrobyVetsSidebar {
   }
 
   showCompletedState(summary) {
-    console.log('✅ Recording complete');
+    console.log('✅ Recording complete', { summaryLength: summary?.length });
     this.showState('completed');
 
-    // Display the real summary from backend
+    // Display the real AI summary from backend
     const summaryContent = document.getElementById('summaryContent');
     if (summaryContent && summary) {
-      summaryContent.innerHTML = summary.replace(/\n/g, '<br>');
+      // Format the summary for better readability
+      const formattedSummary = this.formatSummary(summary);
+      summaryContent.innerHTML = formattedSummary;
+      console.log('📝 Summary displayed in UI');
+    } else {
+      console.error('❌ Summary content element not found or summary is empty');
     }
+  }
+
+  /**
+   * Format AI summary for better display
+   * Converts markdown-style text to HTML
+   */
+  formatSummary(summary) {
+    if (!summary) return '';
+
+    // Replace markdown headers with HTML
+    let formatted = summary
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') // Bold text
+      .replace(/\n\n/g, '</p><p>') // Paragraphs
+      .replace(/\n/g, '<br>') // Line breaks
+      .replace(/^- (.+)/gm, '<li>$1</li>'); // List items
+
+    // Wrap in paragraph tags if not already wrapped
+    if (!formatted.startsWith('<p>')) {
+      formatted = '<p>' + formatted + '</p>';
+    }
+
+    // Wrap list items in <ul> tags
+    formatted = formatted.replace(/(<li>.*<\/li>)/g, '<ul>$1</ul>');
+
+    return formatted;
   }
 
   startNewConsult() {
