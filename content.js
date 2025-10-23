@@ -149,6 +149,28 @@ if (!window.brobyVetsInitialized) {
         checkPatient();
         sendResponse({ success: true });
       }
+
+      if (message.type === 'INSERT_SUMMARY') {
+        console.log('📝 Inserting summary into EzyVet');
+
+        // Find the textarea in EzyVet (this may need adjustment based on actual EzyVet DOM)
+        const textarea = document.querySelector('textarea[name="notes"]') ||
+                         document.querySelector('textarea') ||
+                         document.querySelector('[contenteditable="true"]');
+
+        if (textarea) {
+          textarea.value = message.summary;
+          // Trigger input event so EzyVet knows the field changed
+          textarea.dispatchEvent(new Event('input', { bubbles: true }));
+          textarea.dispatchEvent(new Event('change', { bubbles: true }));
+          console.log('✅ Summary inserted');
+          sendResponse({ success: true });
+        } else {
+          console.error('❌ Could not find textarea');
+          sendResponse({ success: false, error: 'Textarea not found' });
+        }
+      }
+
       return true;
     });
 

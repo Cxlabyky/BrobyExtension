@@ -6,6 +6,9 @@ class BrobyVetsSidebar {
     this.lastUpdate = 0;
     this.pollCount = 0;
     this.isAuthenticated = false;
+    this.currentState = 'ready'; // ready, recording, processing, completed
+    this.timerSeconds = 0;
+    this.timerInterval = null;
     this.init();
   }
 
@@ -71,11 +74,27 @@ class BrobyVetsSidebar {
 
     // Start button
     document.getElementById('startBtn')?.addEventListener('click', () => {
-      if (this.currentPatient) {
-        alert(`✅ Recording started for ${this.currentPatient.name}`);
-      } else {
-        alert('❌ No patient selected');
-      }
+      this.startRecording();
+    });
+
+    // Pause button
+    document.getElementById('pauseBtn')?.addEventListener('click', () => {
+      this.pauseRecording();
+    });
+
+    // Submit button
+    document.getElementById('submitBtn')?.addEventListener('click', () => {
+      this.submitRecording();
+    });
+
+    // New Consult button
+    document.getElementById('newConsultBtn')?.addEventListener('click', () => {
+      this.startNewConsult();
+    });
+
+    // Insert into EzyVet button
+    document.getElementById('insertBtn')?.addEventListener('click', () => {
+      this.insertIntoEzyVet();
     });
 
     // Enter key in email/password fields
@@ -238,21 +257,161 @@ class BrobyVetsSidebar {
   updatePatient(patient) {
     console.log('🎯 UPDATE UI:', patient.name);
     this.currentPatient = patient;
-    
-    const nameEl = document.querySelector('.patient-name');
-    const detailsEl = document.querySelector('.patient-details');
-    
-    if (nameEl) {
+
+    const nameEls = document.querySelectorAll('.patient-name');
+    const detailsEls = document.querySelectorAll('.patient-details');
+
+    nameEls.forEach(nameEl => {
       nameEl.textContent = patient.name;
       nameEl.style.color = '#1FC7CA';
       setTimeout(() => nameEl.style.color = '#FFFFFF', 500);
-    }
-    
-    if (detailsEl) {
+    });
+
+    detailsEls.forEach(detailsEl => {
       detailsEl.textContent = `${patient.species} • ID: ${patient.id} • ${patient.date}`;
-    }
-    
+    });
+
     console.log('✅ UI updated');
+  }
+
+  // State Management
+  showState(state) {
+    console.log(`🔄 Switching to state: ${state}`);
+    this.currentState = state;
+
+    // Hide all states
+    document.getElementById('ready-state').style.display = 'none';
+    document.getElementById('recording-state').style.display = 'none';
+    document.getElementById('processing-state').style.display = 'none';
+    document.getElementById('completed-state').style.display = 'none';
+
+    // Show requested state
+    document.getElementById(`${state}-state`).style.display = 'flex';
+  }
+
+  startRecording() {
+    if (!this.currentPatient) {
+      alert('❌ No patient selected. Please select a patient in EzyVet first.');
+      return;
+    }
+
+    console.log('▶️ Starting recording for:', this.currentPatient.name);
+    this.showState('recording');
+
+    // Start timer
+    this.timerSeconds = 0;
+    this.updateTimer();
+    this.timerInterval = setInterval(() => {
+      this.timerSeconds++;
+      this.updateTimer();
+    }, 1000);
+  }
+
+  updateTimer() {
+    const hours = Math.floor(this.timerSeconds / 3600);
+    const minutes = Math.floor((this.timerSeconds % 3600) / 60);
+    const seconds = this.timerSeconds % 60;
+
+    const timeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+    const timerEl = document.getElementById('timer');
+    if (timerEl) {
+      timerEl.textContent = timeString;
+    }
+  }
+
+  pauseRecording() {
+    console.log('⏸️ Pausing recording');
+
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+
+    const pauseBtn = document.getElementById('pauseBtn');
+    if (pauseBtn) {
+      if (pauseBtn.textContent === '⏸️ Pause') {
+        pauseBtn.textContent = '▶️ Resume';
+      } else {
+        pauseBtn.textContent = '⏸️ Pause';
+        // Resume timer
+        this.timerInterval = setInterval(() => {
+          this.timerSeconds++;
+          this.updateTimer();
+        }, 1000);
+      }
+    }
+  }
+
+  async submitRecording() {
+    console.log('✓ Submitting recording');
+
+    // Stop timer
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+
+    // Show processing state
+    this.showState('processing');
+
+    // Simulate processing (3 seconds)
+    // In production, this will call the backend API
+    setTimeout(() => {
+      this.showCompletedState();
+    }, 3000);
+  }
+
+  showCompletedState() {
+    console.log('✅ Recording complete');
+    this.showState('completed');
+
+    // In production, the summary will come from the backend
+    // For now, it's already in the HTML as mock data
+  }
+
+  startNewConsult() {
+    console.log('🆕 Starting new consult');
+
+    // Reset timer
+    this.timerSeconds = 0;
+    this.updateTimer();
+
+    // Go back to ready state
+    this.showState('ready');
+
+    // Update pause button text
+    const pauseBtn = document.getElementById('pauseBtn');
+    if (pauseBtn) {
+      pauseBtn.textContent = '⏸️ Pause';
+    }
+  }
+
+  insertIntoEzyVet() {
+    console.log('📝 Inserting summary into EzyVet');
+
+    const summaryContent = document.getElementById('summaryContent');
+    if (!summaryContent) return;
+
+    const summaryText = summaryContent.innerText;
+
+    // Send message to content script to insert into EzyVet
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) {
+        chrome.tabs.sendMessage(tabs[0].id, {
+          type: 'INSERT_SUMMARY',
+          summary: summaryText
+        }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('❌ Insert failed:', chrome.runtime.lastError);
+            alert('Failed to insert into EzyVet. Make sure you\'re on the correct page.');
+          } else {
+            console.log('✅ Summary inserted successfully');
+            alert('✅ Summary inserted into EzyVet!');
+          }
+        });
+      }
+    });
   }
 }
 
