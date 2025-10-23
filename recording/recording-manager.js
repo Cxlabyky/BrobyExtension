@@ -10,6 +10,7 @@ class RecordingManager {
     this.isActive = false;
     this.uploadQueue = [];
     this.isUploading = false;
+    this.processedChunks = new Set(); // Track chunks we've already queued
   }
 
   /**
@@ -20,6 +21,10 @@ class RecordingManager {
   async startRecording(patient) {
     try {
       console.log('🎬 Starting recording workflow for:', patient.name);
+
+      // Reset state for new recording
+      this.processedChunks.clear();
+      this.uploadQueue = [];
 
       // Check browser support
       if (!MediaRecorderService.isSupported()) {
@@ -84,7 +89,16 @@ class RecordingManager {
    * @param {number} chunkNumber
    */
   handleChunk(blob, duration, chunkNumber) {
+    // DEDUPLICATION: Check if we've already queued this chunk
+    if (this.processedChunks.has(chunkNumber)) {
+      console.log(`⚠️ Ignoring duplicate chunk ${chunkNumber}`);
+      return;
+    }
+
     console.log(`📦 Received chunk ${chunkNumber}, adding to upload queue`);
+
+    // Mark as processed
+    this.processedChunks.add(chunkNumber);
 
     // Add to upload queue
     this.uploadQueue.push({
