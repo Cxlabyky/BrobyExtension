@@ -59,6 +59,55 @@ class RecordingService {
   }
 
   /**
+   * Update recording session status
+   * Mimics webapp's Supabase client update to prevent cleanup deletion
+   * @param {string} sessionId
+   * @param {string} status - 'completed', 'paused', etc.
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  static async updateSessionStatus(sessionId, status) {
+    try {
+      console.log(`📊 Updating session ${sessionId} status to: ${status}`);
+
+      const authHeaders = await TokenManager.getAuthHeaders();
+
+      const response = await fetch(
+        `${CONFIG.API_BASE_URL}/recordings/sessions/${sessionId}`,
+        {
+          method: 'PUT',
+          headers: {
+            ...authHeaders,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ status })
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('❌ Session status update failed:', data.error);
+        return {
+          success: false,
+          error: data.error || 'Failed to update session status'
+        };
+      }
+
+      console.log('✅ Session status updated successfully');
+      return {
+        success: true
+      };
+
+    } catch (error) {
+      console.error('❌ Session status update error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
    * Upload a single audio chunk
    * @param {string} sessionId
    * @param {Blob} audioBlob
@@ -154,7 +203,7 @@ class RecordingService {
    * @param {string} sessionId
    * @returns {Promise<{success: boolean, data?: object, error?: string}>}
    */
-  static async completeSession(sessionId) {
+  static async completeSession(sessionId, retries = 2) {
     try {
       console.log('✅ Completing recording session:', sessionId);
 
@@ -171,7 +220,19 @@ class RecordingService {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('❌ Session completion failed:', data.error);
+        console.error('❌ Session completion failed');
+        console.error('❌ Status:', response.status);
+        console.error('❌ Full response:', data);
+        console.error('❌ Error message:', data.error);
+        console.error('❌ Error details:', data.details);
+
+        // Retry on 500 errors (backend issue)
+        if (response.status === 500 && retries > 0) {
+          console.log(`🔄 Retrying completion... (${retries} retries left)`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          return this.completeSession(sessionId, retries - 1);
+        }
+
         return {
           success: false,
           error: data.error || 'Failed to complete session'

@@ -11,6 +11,7 @@ class RecordingManager {
     this.uploadQueue = [];
     this.isUploading = false;
     this.processedChunks = new Set(); // Track chunks we've already queued
+    this.recordingStartTime = null; // Track when recording started for duration calculation
   }
 
   /**
@@ -62,7 +63,23 @@ class RecordingManager {
         this.handleChunk(blob, duration, chunkNumber);
       });
 
+      // Step 4: Update session status to 'active'
+      // This prevents backend cleanup from deleting it as 'pending'
+      console.log('📊 Step 4: Updating session status to active...');
+      const statusResult = await RecordingService.updateSessionStatus(
+        this.sessionId,
+        'active'
+      );
+
+      if (!statusResult.success) {
+        console.warn('⚠️ Failed to update session status:', statusResult.error);
+        // Don't fail the recording, just log warning
+      } else {
+        console.log('✅ Session status updated to active');
+      }
+
       this.isActive = true;
+      this.recordingStartTime = Date.now(); // Record start time for duration calculation
       console.log('✅ Recording started successfully!');
 
       return {
@@ -89,6 +106,9 @@ class RecordingManager {
    * @param {number} chunkNumber
    */
   handleChunk(blob, duration, chunkNumber) {
+    console.log(`🔍 DEBUG handleChunk CALLED: chunk ${chunkNumber}, blob size ${blob?.size}, duration ${duration}`);
+    console.log(`🔍 DEBUG: processedChunks size before:`, this.processedChunks.size);
+
     // DEDUPLICATION: Check if we've already queued this chunk
     if (this.processedChunks.has(chunkNumber)) {
       console.log(`⚠️ Ignoring duplicate chunk ${chunkNumber}`);
@@ -187,32 +207,89 @@ class RecordingManager {
       // Stop MediaRecorder
       await this.mediaRecorder.stopRecording();
 
+      // CRITICAL: Wait for the final chunk to arrive and be processed
+      console.log('⏳ Waiting for final chunk to arrive and upload...');
+
+      // Track initial state
+      const initialProcessedCount = this.processedChunks.size;
+      let lastProcessedCount = initialProcessedCount;
+      let noChangeCount = 0;
+      let totalWait = 0;
+      const maxWait = 5000; // 5 seconds max for chunk to arrive
+
+      // Wait until we see at least one chunk arrive, or timeout
+      while (totalWait < maxWait) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+        totalWait += 200;
+
+        const currentProcessedCount = this.processedChunks.size;
+
+        if (currentProcessedCount > lastProcessedCount) {
+          console.log(`📦 Chunk arrived! Processed: ${currentProcessedCount}`);
+          lastProcessedCount = currentProcessedCount;
+          noChangeCount = 0;
+        } else {
+          noChangeCount++;
+        }
+
+        // If we've had a chunk arrive and no new chunks for 1 second, we're done
+        if (currentProcessedCount > initialProcessedCount && noChangeCount >= 5) {
+          console.log('✅ Final chunk arrived and stabilized');
+          break;
+        }
+      }
+
       // Wait for all uploads to complete
       console.log('⏳ Waiting for all uploads to complete...');
       let attempts = 0;
       const maxAttempts = 30;  // 30 seconds max
 
-      while (this.uploadQueue.length > 0 && attempts < maxAttempts) {
+      while ((this.uploadQueue.length > 0 || this.isUploading) && attempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, 1000));
         attempts++;
-        console.log(`⏳ Upload queue: ${this.uploadQueue.length} chunks remaining...`);
+        console.log(`⏳ Upload queue: ${this.uploadQueue.length} chunks remaining, uploading: ${this.isUploading}`);
       }
 
       if (this.uploadQueue.length > 0) {
         console.warn(`⚠️ Timeout: ${this.uploadQueue.length} chunks not uploaded`);
       } else {
-        console.log('✅ All chunks uploaded');
+        console.log(`✅ All ${this.processedChunks.size} chunks uploaded`);
       }
 
-      // Complete session (triggers summary generation)
-      console.log('🎯 Completing session...');
-      const completeResult = await RecordingService.completeSession(this.sessionId);
+      // Calculate total duration (in seconds)
+      const totalDurationMs = this.recordingStartTime
+        ? Date.now() - this.recordingStartTime
+        : 0;
+      const totalDurationSeconds = Math.round(totalDurationMs / 1000);
+      console.log(`📊 Total recording duration: ${totalDurationSeconds} seconds`);
+
+      // CRITICAL: Update session status to 'completed' BEFORE calling /consultations/complete
+      // This prevents backend cleanup logic from deleting the session
+      console.log('📊 Updating recording session status to completed...');
+      const updateResult = await RecordingService.updateSessionStatus(
+        this.sessionId,
+        'completed'
+      );
+
+      if (!updateResult.success) {
+        console.warn('⚠️ Failed to update session status:', updateResult.error);
+        console.warn('⚠️ Proceeding anyway - session may be cleaned up by backend');
+      } else {
+        console.log('✅ Recording session marked as completed');
+      }
+
+      // Complete consultation (same as webapp)
+      // Now that session is marked 'completed', it won't be deleted by cleanup
+      console.log('🎯 Completing consultation (matching webapp flow)...');
+      const completeResult = await ConsultationService.completeConsultation(
+        this.consultationId
+      );
 
       if (!completeResult.success) {
-        throw new Error(completeResult.error || 'Failed to complete session');
+        throw new Error(completeResult.error || 'Failed to complete consultation');
       }
 
-      console.log('✅ Session completed, summary generation started');
+      console.log('✅ Consultation completed, summary will be generated via streaming endpoint');
 
       const result = {
         success: true,

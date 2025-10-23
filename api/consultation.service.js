@@ -184,6 +184,51 @@ class ConsultationService {
   }
 
   /**
+   * Complete consultation (triggers summary generation)
+   * Matches webapp's POST /consultations/:id/complete
+   * @param {string} consultationId
+   * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+   */
+  static async completeConsultation(consultationId) {
+    try {
+      console.log('🎯 Completing consultation:', consultationId);
+
+      const authHeaders = await TokenManager.getAuthHeaders();
+
+      const response = await fetch(
+        `${CONFIG.API_BASE_URL}/consultations/${consultationId}/complete`,
+        {
+          method: 'POST',
+          headers: authHeaders
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('❌ Consultation completion failed:', data.error);
+        return {
+          success: false,
+          error: data.error || 'Failed to complete consultation'
+        };
+      }
+
+      console.log('✅ Consultation completed successfully');
+      return {
+        success: true,
+        data: data.data
+      };
+
+    } catch (error) {
+      console.error('❌ Consultation completion error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
    * Poll for AI summary generation completion
    * @param {string} consultationId
    * @param {number} maxAttempts - Maximum polling attempts (default 30)

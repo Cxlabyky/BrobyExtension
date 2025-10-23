@@ -10,13 +10,34 @@ class MediaRecorderService {
 
   /**
    * Setup message listener for audio chunks from offscreen document
+   * IMPORTANT: Only process messages that come directly from offscreen,
+   * not broadcasts from background.js
    */
   setupMessageListener() {
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      // DEBUG: Log ALL messages to understand sender
+      if (message.type === 'AUDIO_CHUNK') {
+        console.log(`🔍 DEBUG SENDER:`, sender);
+        console.log(`🔍 DEBUG sender.url:`, sender.url);
+        console.log(`🔍 DEBUG sender.id:`, sender.id);
+      }
+
+      // Ignore broadcast messages (sender.url will be undefined for broadcasts)
+      // Only process direct messages from offscreen.html
+      if (!sender.url || !sender.url.includes('offscreen.html')) {
+        if (message.type === 'AUDIO_CHUNK') {
+          console.log(`❌ REJECTED: sender.url check failed`);
+        }
+        return; // Ignore non-offscreen messages
+      }
+
       if (message.type === 'AUDIO_CHUNK') {
         console.log(`📦 Received chunk ${message.chunk.chunkNumber} from offscreen`);
+        console.log(`🔍 DEBUG: chunkCallback exists?`, !!this.chunkCallback);
+        console.log(`🔍 DEBUG: chunkCallback type:`, typeof this.chunkCallback);
 
         if (this.chunkCallback) {
+          console.log(`🔍 DEBUG: Converting blob for chunk ${message.chunk.chunkNumber}...`);
           // Convert base64 back to Blob
           const byteCharacters = atob(message.chunk.data);
           const byteNumbers = new Array(byteCharacters.length);
@@ -26,11 +47,15 @@ class MediaRecorderService {
           const byteArray = new Uint8Array(byteNumbers);
           const blob = new Blob([byteArray], { type: message.chunk.mimeType });
 
+          console.log(`🔍 DEBUG: About to call chunkCallback with blob size ${blob.size}`);
           this.chunkCallback(
             blob,
             message.chunk.duration,
             message.chunk.chunkNumber
           );
+          console.log(`🔍 DEBUG: chunkCallback completed for chunk ${message.chunk.chunkNumber}`);
+        } else {
+          console.error(`❌ ERROR: chunkCallback is NULL/undefined for chunk ${message.chunk.chunkNumber}`);
         }
       }
 
@@ -55,8 +80,10 @@ class MediaRecorderService {
   async startRecording(onChunkReady) {
     try {
       console.log('🎤 Starting recording via offscreen document...');
+      console.log(`🔍 DEBUG: Setting chunkCallback, type:`, typeof onChunkReady);
 
       this.chunkCallback = onChunkReady;
+      console.log(`🔍 DEBUG: chunkCallback set successfully, exists?`, !!this.chunkCallback);
 
       // Create offscreen document if needed
       console.log('📝 Step 1: Creating offscreen document...');

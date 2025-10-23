@@ -14,10 +14,20 @@ class MediaRecorderService {
    */
   setupMessageListener() {
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      // DEBUG: Log ALL messages to understand sender
+      if (message.type === 'AUDIO_CHUNK') {
+        console.log(`🔍 DEBUG SENDER:`, sender);
+        console.log(`🔍 DEBUG sender.url:`, sender.url);
+        console.log(`🔍 DEBUG sender.id:`, sender.id);
+      }
+
       if (message.type === 'AUDIO_CHUNK') {
         console.log(`📦 Received chunk ${message.chunk.chunkNumber} from offscreen`);
+        console.log(`🔍 DEBUG: chunkCallback exists?`, !!this.chunkCallback);
+        console.log(`🔍 DEBUG: chunkCallback type:`, typeof this.chunkCallback);
 
         if (this.chunkCallback) {
+          console.log(`🔍 DEBUG: About to call chunkCallback...`);
           // Convert base64 back to Blob
           const byteCharacters = atob(message.chunk.data);
           const byteNumbers = new Array(byteCharacters.length);
@@ -32,6 +42,9 @@ class MediaRecorderService {
             message.chunk.duration,
             message.chunk.chunkNumber
           );
+          console.log(`🔍 DEBUG: chunkCallback completed for chunk ${message.chunk.chunkNumber}`);
+        } else {
+          console.error(`❌ ERROR: chunkCallback is NULL for chunk ${message.chunk.chunkNumber}!`);
         }
       }
 
@@ -109,6 +122,12 @@ class MediaRecorderService {
       }
 
       this.isActive = false;
+
+      // CRITICAL: Don't clear callback immediately - final chunk may still arrive!
+      // Wait a bit for any final chunks to be processed
+      console.log('⏳ Waiting 1 second for final chunks...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       this.chunkCallback = null;
 
       console.log('✅ Recording stopped');
@@ -116,6 +135,8 @@ class MediaRecorderService {
     } catch (error) {
       console.error('❌ Failed to stop recording:', error);
       this.isActive = false;
+      // Still wait for chunks even on error
+      await new Promise(resolve => setTimeout(resolve, 1000));
       this.chunkCallback = null;
     }
   }

@@ -14,6 +14,9 @@ class BrobyVetsSidebar {
     this.sessionId = null;
     this.summaryPollInterval = null;
     this.isPaused = false;
+    // Photo management
+    this.photos = [];
+    this.uploadingPhotos = new Set();
     this.init();
   }
 
@@ -123,6 +126,44 @@ class BrobyVetsSidebar {
         console.log('👤 Patient from storage change:', patient?.name);
         this.updatePatient(patient);
       }
+    });
+
+    // Photo upload event listeners
+    this.setupPhotoUpload();
+  }
+
+  setupPhotoUpload() {
+    const addPhotoBtn = document.getElementById('addPhotoBtn');
+    const photoInput = document.getElementById('photoInput');
+
+    if (!addPhotoBtn || !photoInput) {
+      console.warn('⚠️ Photo upload elements not found');
+      return;
+    }
+
+    // Click "+" button to trigger file input
+    addPhotoBtn.addEventListener('click', () => {
+      if (!this.consultationId) {
+        alert('❌ Please start a consultation first');
+        return;
+      }
+      photoInput.click();
+    });
+
+    // Handle file selection
+    photoInput.addEventListener('change', async (e) => {
+      const files = Array.from(e.target.files);
+      if (files.length === 0) return;
+
+      console.log(`📸 ${files.length} photo(s) selected`);
+
+      // Upload each selected photo
+      for (const file of files) {
+        await this.uploadPhoto(file);
+      }
+
+      // Clear input for next selection
+      photoInput.value = '';
     });
   }
 
@@ -357,6 +398,9 @@ class BrobyVetsSidebar {
 
     console.log('✅ Recording started:', { consultationId: this.consultationId, sessionId: this.sessionId });
 
+    // Load existing photos if any (async, don't block)
+    this.loadExistingPhotos(this.consultationId);
+
     // Show recording state
     this.showState('recording');
 
@@ -536,6 +580,9 @@ class BrobyVetsSidebar {
       const formattedSummary = this.formatSummary(summary);
       summaryContent.innerHTML = formattedSummary;
       console.log('📝 Summary displayed in UI');
+
+      // Automatically inject summary into EzyVet after displaying
+      this.autoInjectIntoEzyVet(summary);
     } else {
       console.error('❌ Summary content element not found or summary is empty');
     }
@@ -566,6 +613,170 @@ class BrobyVetsSidebar {
     return formatted;
   }
 
+  // Photo Upload Methods
+  async uploadPhoto(file) {
+    console.log('📸 Uploading photo:', file.name);
+
+    // Validate file
+    if (!file.type.startsWith('image/')) {
+      alert('❌ Please select an image file');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('❌ Image must be smaller than 10MB');
+      return;
+    }
+
+    // Check consultation ID
+    if (!this.consultationId) {
+      alert('❌ No active consultation');
+      return;
+    }
+
+    // Create preview immediately (optimistic UI)
+    const tempId = `temp-${Date.now()}`;
+    const previewUrl = URL.createObjectURL(file);
+    this.addPhotoToGrid(tempId, previewUrl, true); // true = uploading
+    this.uploadingPhotos.add(tempId);
+
+    try {
+      // Upload to backend with retry
+      const result = await PhotoService.uploadPhotoWithRetry(
+        this.consultationId,
+        file,
+        '', // caption
+        3  // max retries
+      );
+
+      if (result.success) {
+        console.log('✅ Photo uploaded successfully:', result.photo.id);
+
+        // Replace temp photo with real photo data
+        this.removePhotoFromGrid(tempId);
+        this.uploadingPhotos.delete(tempId);
+
+        // Add real photo
+        this.addPhotoToGrid(result.photo.id, result.photo.url, false);
+        this.photos.push(result.photo);
+        this.updatePhotoCount();
+      } else {
+        throw new Error(result.error);
+      }
+
+    } catch (error) {
+      console.error('❌ Photo upload failed:', error);
+      this.removePhotoFromGrid(tempId);
+      this.uploadingPhotos.delete(tempId);
+      alert(`❌ Failed to upload photo: ${error.message}`);
+    }
+  }
+
+  addPhotoToGrid(photoId, photoUrl, isUploading = false) {
+    const grid = document.getElementById('photosGrid');
+    const addBtn = document.getElementById('addPhotoBtn');
+
+    if (!grid || !addBtn) return;
+
+    const photoDiv = document.createElement('div');
+    photoDiv.className = `photo-thumbnail ${isUploading ? 'photo-uploading' : ''}`;
+    photoDiv.id = `photo-${photoId}`;
+    photoDiv.style.backgroundImage = `url(${photoUrl})`;
+
+    // Add remove button (only for uploaded photos)
+    if (!isUploading) {
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'remove-btn';
+      removeBtn.innerHTML = '×';
+      removeBtn.onclick = (e) => {
+        e.stopPropagation();
+        this.deletePhoto(photoId);
+      };
+      photoDiv.appendChild(removeBtn);
+    }
+
+    // Insert before the "+" button
+    grid.insertBefore(photoDiv, addBtn);
+  }
+
+  removePhotoFromGrid(photoId) {
+    const photoEl = document.getElementById(`photo-${photoId}`);
+    if (photoEl) {
+      photoEl.remove();
+    }
+  }
+
+  updatePhotoCount() {
+    const count = this.photos.length;
+    const badge = document.getElementById('photoCount');
+    if (badge) {
+      badge.textContent = count;
+    }
+  }
+
+  async deletePhoto(photoId) {
+    if (!confirm('Delete this photo?')) return;
+
+    console.log('🗑️ Deleting photo:', photoId);
+
+    try {
+      const result = await PhotoService.deletePhoto(this.consultationId, photoId);
+
+      if (result.success) {
+        console.log('✅ Photo deleted successfully');
+        this.removePhotoFromGrid(photoId);
+        this.photos = this.photos.filter(p => p.id !== photoId);
+        this.updatePhotoCount();
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error('❌ Failed to delete photo:', error);
+      alert(`❌ Failed to delete photo: ${error.message}`);
+    }
+  }
+
+  async loadExistingPhotos(consultationId) {
+    try {
+      console.log('📸 Loading existing photos for consultation:', consultationId);
+      const result = await PhotoService.getPhotos(consultationId);
+
+      if (result.success && result.photos) {
+        console.log(`✅ Loaded ${result.photos.length} photos`);
+        this.photos = result.photos;
+
+        // Display in grid
+        result.photos.forEach(photo => {
+          this.addPhotoToGrid(photo.id, photo.url, false);
+        });
+
+        this.updatePhotoCount();
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to load existing photos:', error);
+    }
+  }
+
+  resetPhotoState() {
+    console.log('🔄 Resetting photo state');
+
+    // Clear photos array
+    this.photos = [];
+    this.uploadingPhotos.clear();
+
+    // Clear photo grid (keep only "+" button)
+    const grid = document.getElementById('photosGrid');
+    const addBtn = document.getElementById('addPhotoBtn');
+
+    if (grid && addBtn) {
+      grid.innerHTML = '';
+      grid.appendChild(addBtn);
+    }
+
+    // Reset counter
+    this.updatePhotoCount();
+  }
+
   startNewConsult() {
     console.log('🆕 Starting new consult');
 
@@ -581,6 +792,9 @@ class BrobyVetsSidebar {
     this.timerSeconds = 0;
     this.isPaused = false;
     this.updateTimer();
+
+    // Reset photos
+    this.resetPhotoState();
 
     // Go back to ready state
     this.showState('ready');
@@ -617,6 +831,83 @@ class BrobyVetsSidebar {
         });
       }
     });
+  }
+
+  /**
+   * Automatically inject summary into EzyVet History form
+   * @param {string} summary - The AI-generated summary text
+   */
+  async autoInjectIntoEzyVet(summary) {
+    console.log('🎯 Auto-injecting summary into EzyVet History form...');
+
+    try {
+      // Query for EzyVet tabs
+      const tabs = await chrome.tabs.query({ url: '*://*.ezyvet.com/*' });
+
+      if (tabs.length === 0) {
+        console.warn('⚠️ No EzyVet tabs found - skipping auto-injection');
+        return;
+      }
+
+      // Use the first EzyVet tab found
+      const ezyvetTab = tabs[0];
+      console.log('✅ Found EzyVet tab:', ezyvetTab.id);
+
+      // Send injection request to content script
+      chrome.tabs.sendMessage(ezyvetTab.id, {
+        action: 'injectHistory',
+        summaryText: summary
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('❌ Auto-injection failed:', chrome.runtime.lastError);
+          console.log('💡 User can still manually click "Insert into EzyVet" button');
+        } else if (response && response.success) {
+          console.log('✅ Summary auto-injected successfully into EzyVet History!');
+          // Optional: Show a subtle notification to user
+          this.showInjectionSuccess();
+        } else {
+          console.error('❌ Auto-injection failed:', response?.error);
+          console.log('💡 User can still manually click "Insert into EzyVet" button');
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Auto-injection error:', error);
+      console.log('💡 User can still manually click "Insert into EzyVet" button');
+    }
+  }
+
+  /**
+   * Show subtle success notification for auto-injection
+   */
+  showInjectionSuccess() {
+    // Create a temporary success indicator
+    const indicator = document.createElement('div');
+    indicator.textContent = '✅ Summary auto-injected into EzyVet';
+    indicator.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(52, 199, 89, 0.9);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      z-index: 10000;
+      animation: slideIn 0.3s ease-out;
+    `;
+
+    document.body.appendChild(indicator);
+
+    // Remove after 3 seconds
+    setTimeout(() => {
+      indicator.style.animation = 'slideOut 0.3s ease-out';
+      setTimeout(() => {
+        indicator.remove();
+      }, 300);
+    }, 3000);
   }
 }
 
