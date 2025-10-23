@@ -13,11 +13,17 @@ chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('📨 BACKGROUND RECEIVED MESSAGE:', message);
-  
+
+  if (message.type === 'PING') {
+    // Connection test for content script reconnection
+    sendResponse({ success: true });
+    return true;
+  }
+
   if (message.type === 'PATIENT_CHANGED') {
     console.log('💾 STORING PATIENT:', message.patient);
-    
-    chrome.storage.local.set({ 
+
+    chrome.storage.local.set({
       currentPatient: message.patient,
       lastUpdate: Date.now()
     }).then(() => {
@@ -27,10 +33,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.error('❌ STORAGE ERROR:', error);
       sendResponse({ success: false, error: error.message });
     });
-    
+
     return true; // Keep channel open for async response
   }
-  
+
   return false;
 });
 
