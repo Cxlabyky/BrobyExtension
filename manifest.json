@@ -4,7 +4,10 @@
   "version": "1.0.0",
   "description": "AI-powered veterinary consultation recording",
   "permissions": ["storage", "sidePanel", "tabs"],
-  "host_permissions": ["*://*.ezyvet.com/*"],
+  "host_permissions": [
+    "*://*.ezyvet.com/*",
+    "https://backend-production-a35dc.up.railway.app/*"
+  ],
   "content_scripts": [{
     "matches": ["*://*.ezyvet.com/*"],
     "js": ["content.js"],
