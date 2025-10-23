@@ -22,9 +22,15 @@ function getInjector() {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('📨 Content script received message:', message);
 
-  // Handle injection request
-  if (message.action === 'injectHistory') {
-    handleInjectionRequest(message.summaryText)
+  // Handle injection request (supports both message formats)
+  if (message.action === 'injectHistory' || message.type === 'INSERT_SUMMARY') {
+    // ✅ NEW: Extract photos from message
+    const photos = message.photos || [];
+
+    // Support both summaryText and summary properties
+    const summaryText = message.summaryText || message.summary;
+
+    handleInjectionRequest(summaryText, photos)
       .then(result => {
         console.log('✅ Injection result:', result);
         sendResponse(result);
@@ -48,7 +54,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   // Unknown action
-  console.warn('⚠️ Unknown action:', message.action);
+  console.warn('⚠️ Unknown action:', message.action, message.type);
   sendResponse({ success: false, error: 'Unknown action' });
   return false;
 });
@@ -56,9 +62,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 /**
  * Handle injection request with validation
  * @param {string} summaryText
+ * @param {Array} photos - Array of photo objects
  * @returns {Promise<{success: boolean, error?: string}>}
  */
-async function handleInjectionRequest(summaryText) {
+async function handleInjectionRequest(summaryText, photos = []) {
   try {
     // Validate summary text
     if (!summaryText || typeof summaryText !== 'string') {
@@ -70,12 +77,16 @@ async function handleInjectionRequest(summaryText) {
     }
 
     console.log('🎤 Starting injection for summary:', summaryText.substring(0, 100) + '...');
+    if (photos && photos.length > 0) {
+      console.log(`📸 Injection includes ${photos.length} photo(s)`);
+    }
 
     // Get injector instance
     const injectorInstance = getInjector();
 
+    // ✅ NEW: Pass photos to injector
     // Perform injection
-    const result = await injectorInstance.injectSummary(summaryText);
+    const result = await injectorInstance.injectSummary(summaryText, photos);
 
     if (result.success) {
       console.log('✅ Summary injected successfully into EzyVet');

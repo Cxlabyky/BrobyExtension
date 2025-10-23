@@ -623,8 +623,8 @@ class BrobyVetsSidebar {
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      alert('❌ Image must be smaller than 10MB');
+    if (file.size > 5 * 1024 * 1024) {
+      alert('❌ Image must be smaller than 5MB');
       return;
     }
 
@@ -819,7 +819,8 @@ class BrobyVetsSidebar {
       if (tabs[0]) {
         chrome.tabs.sendMessage(tabs[0].id, {
           type: 'INSERT_SUMMARY',
-          summary: summaryText
+          summary: summaryText,
+          photos: this.photos  // ✅ NEW: Include photos
         }, (response) => {
           if (chrome.runtime.lastError) {
             console.error('❌ Insert failed:', chrome.runtime.lastError);
@@ -856,7 +857,8 @@ class BrobyVetsSidebar {
       // Send injection request to content script
       chrome.tabs.sendMessage(ezyvetTab.id, {
         action: 'injectHistory',
-        summaryText: summary
+        summaryText: summary,
+        photos: this.photos  // ✅ NEW: Include photos
       }, (response) => {
         if (chrome.runtime.lastError) {
           console.error('❌ Auto-injection failed:', chrome.runtime.lastError);

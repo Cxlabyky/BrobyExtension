@@ -26,7 +26,7 @@ class PhotoService {
         };
       }
 
-      // Validate file size (10MB limit)
+      // Validate file size (10MB limit for base64)
       const maxSize = 10 * 1024 * 1024; // 10MB
       if (photoFile.size > maxSize) {
         return {
@@ -35,26 +35,27 @@ class PhotoService {
         };
       }
 
-      // Create FormData
-      const formData = new FormData();
-      formData.append('photo', photoFile, photoFile.name);
-      if (caption) {
-        formData.append('caption', caption);
-      }
+      // Convert photo to base64
+      const base64Photo = await this.fileToBase64(photoFile);
 
       // Get auth headers
       const authHeaders = await TokenManager.getAuthHeaders();
 
-      // Upload using fetch (similar to chunk upload pattern)
+      // Upload as JSON with base64 data
       const response = await fetch(
         `${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.UPLOAD_PHOTO(consultationId)}`,
         {
           method: 'POST',
           headers: {
-            ...authHeaders
-            // Don't set Content-Type - browser sets it with boundary for FormData
+            ...authHeaders,
+            'Content-Type': 'application/json'  // JSON instead of multipart
           },
-          body: formData
+          body: JSON.stringify({
+            photo: base64Photo,           // Base64 encoded image
+            filename: photoFile.name,     // Original filename
+            mimeType: photoFile.type,     // Image MIME type
+            caption: caption || photoFile.name
+          })
         }
       );
 
@@ -82,6 +83,27 @@ class PhotoService {
         error: error.message || 'Network error'
       };
     }
+  }
+
+  /**
+   * Convert File to base64 data URL
+   * @param {File} file - Image file to convert
+   * @returns {Promise<string>} Base64 data URL (includes "data:image/...;base64," prefix)
+   */
+  static fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        resolve(reader.result); // Returns "data:image/png;base64,..."
+      };
+
+      reader.onerror = (error) => {
+        reject(new Error(`Failed to read file: ${error}`));
+      };
+
+      reader.readAsDataURL(file);
+    });
   }
 
   /**

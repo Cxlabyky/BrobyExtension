@@ -11,9 +11,10 @@ class EzyVetHistoryInjector {
   /**
    * Main injection method - orchestrates the complete flow
    * @param {string} summaryText - The AI-generated summary to inject
+   * @param {Array} photos - Array of photo objects to inject
    * @returns {Promise<{success: boolean, error?: string}>}
    */
-  async injectSummary(summaryText) {
+  async injectSummary(summaryText, photos = []) {
     if (this.isInjecting) {
       return {
         success: false,
@@ -59,7 +60,21 @@ class EzyVetHistoryInjector {
 
       console.log('✅ Filled comment textarea');
 
-      // Step 5: Submit the form
+      // ✅ NEW STEP 5: Inject photos if provided
+      if (photos && photos.length > 0) {
+        console.log(`📸 Injecting ${photos.length} photo(s)...`);
+        const photoResult = await this.injectPhotos(photos);
+
+        if (!photoResult.success) {
+          console.warn('⚠️ Photo injection failed:', photoResult.error);
+          console.log('💡 Continuing with summary submission anyway');
+          // Don't throw - still submit summary even if photos fail
+        } else {
+          console.log('✅ Photos injected successfully');
+        }
+      }
+
+      // Step 6: Submit the form
       const submitted = await this.submitForm();
       if (!submitted) {
         throw new Error('Failed to submit form');
@@ -263,6 +278,124 @@ class EzyVetHistoryInjector {
     }
 
     return true;
+  }
+
+  /**
+   * Inject photos into EzyVet History form
+   * @param {Array} photos - Array of photo objects from sidebar
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async injectPhotos(photos) {
+    if (!photos || photos.length === 0) {
+      console.log('📸 No photos to inject');
+      return { success: true };
+    }
+
+    try {
+      console.log(`📸 Starting photo injection for ${photos.length} photo(s)...`);
+
+      // TODO: REPLACE THIS ID PATTERN WITH YOUR DISCOVERED PATTERN
+      // Examples of possible patterns:
+      // - `photo_upload-${this.currentTabNumber}`
+      // - `attachment_field-${this.currentTabNumber}`
+      // - `visithistorydata_photos-${this.currentTabNumber}`
+
+      const photoUploadElementId = `photo_upload_field-${this.currentTabNumber}`;
+      const uploadElement = document.getElementById(photoUploadElementId);
+
+      if (!uploadElement) {
+        console.warn('⚠️ Photo upload element not found:', photoUploadElementId);
+        return {
+          success: false,
+          error: 'Photo upload element not found'
+        };
+      }
+
+      console.log('✅ Found photo upload element:', uploadElement);
+
+      // Upload each photo sequentially
+      for (let i = 0; i < photos.length; i++) {
+        const photo = photos[i];
+        console.log(`📸 Uploading photo ${i + 1}/${photos.length}: ${photo.filename}`);
+
+        const uploaded = await this.uploadSinglePhoto(uploadElement, photo);
+
+        if (!uploaded) {
+          console.warn(`⚠️ Failed to upload photo: ${photo.filename}`);
+        }
+
+        // Small delay between uploads
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      console.log('✅ Photo injection completed');
+      return { success: true };
+
+    } catch (error) {
+      console.error('❌ Photo injection failed:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Upload a single photo to EzyVet
+   * @param {HTMLElement} uploadElement - The file input element
+   * @param {Object} photo - Photo object {id, url, filename, caption}
+   * @returns {Promise<boolean>}
+   */
+  async uploadSinglePhoto(uploadElement, photo) {
+    try {
+      console.log('📸 Processing photo:', photo.filename);
+
+      // Step 1: Fetch the image from URL as blob
+      const response = await fetch(photo.url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch photo: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      console.log('✅ Photo blob fetched:', blob.size, 'bytes');
+
+      // Step 2: Create File object
+      const file = new File([blob], photo.filename, {
+        type: blob.type || 'image/jpeg'
+      });
+
+      // Step 3: Use DataTransfer API to set files
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      uploadElement.files = dataTransfer.files;
+
+      // Step 4: Trigger events
+      const events = ['change', 'input'];
+      for (const eventType of events) {
+        const event = new Event(eventType, { bubbles: true, cancelable: true });
+        uploadElement.dispatchEvent(event);
+      }
+
+      // Step 5: Try jQuery if available
+      if (typeof window.$ !== 'undefined') {
+        try {
+          window.$(uploadElement).trigger('change');
+          console.log('✅ jQuery change event triggered');
+        } catch (e) {
+          console.warn('⚠️ jQuery trigger failed:', e);
+        }
+      }
+
+      // Wait for processing
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      console.log('✅ Photo upload completed:', photo.filename);
+      return true;
+
+    } catch (error) {
+      console.error('❌ Failed to upload photo:', error);
+      return false;
+    }
   }
 
   /**
