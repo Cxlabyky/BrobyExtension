@@ -911,6 +911,126 @@ class BrobyVetsSidebar {
       }, 300);
     }, 3000);
   }
+
+  // ============================================
+  // PAUSED CONSULTATIONS MANAGEMENT
+  // ============================================
+
+  /**
+   * Show paused consultations grid
+   */
+  showPausedConsultations(pausedConsultations) {
+    const pausedSection = document.getElementById('paused-consultations');
+    const pausedGrid = document.getElementById('pausedGrid');
+
+    if (!pausedConsultations || pausedConsultations.length === 0) {
+      pausedSection.style.display = 'none';
+      return;
+    }
+
+    // Clear existing cards
+    pausedGrid.innerHTML = '';
+
+    // Create card for each paused consultation
+    pausedConsultations.forEach(consultation => {
+      const card = this.createPausedCard(consultation);
+      pausedGrid.appendChild(card);
+    });
+
+    pausedSection.style.display = 'block';
+  }
+
+  /**
+   * Create paused consultation card
+   */
+  createPausedCard(consultation) {
+    const card = document.createElement('div');
+    card.className = 'paused-card';
+
+    const patientName = document.createElement('div');
+    patientName.className = 'paused-card-patient';
+    patientName.textContent = consultation.patientName || 'Unknown Patient';
+
+    const timeContainer = document.createElement('div');
+    timeContainer.className = 'paused-card-time';
+
+    const icon = document.createElement('span');
+    icon.className = 'paused-card-icon';
+    icon.textContent = '⏸️';
+
+    const time = document.createElement('span');
+    time.textContent = this.formatPauseTime(consultation.pausedAt);
+
+    timeContainer.appendChild(icon);
+    timeContainer.appendChild(time);
+
+    card.appendChild(patientName);
+    card.appendChild(timeContainer);
+
+    // Click handler to resume consultation
+    card.addEventListener('click', () => {
+      this.resumeConsultation(consultation);
+    });
+
+    return card;
+  }
+
+  /**
+   * Format pause time for display
+   */
+  formatPauseTime(pausedAt) {
+    if (!pausedAt) return 'Unknown';
+
+    const pauseDate = new Date(pausedAt);
+    const now = new Date();
+    const diffMs = now - pauseDate;
+    const diffMins = Math.floor(diffMs / 60000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d ago`;
+  }
+
+  /**
+   * Resume a paused consultation
+   */
+  async resumeConsultation(consultation) {
+    console.log('▶️ Resuming consultation:', consultation);
+
+    // Load consultation data
+    this.consultationId = consultation.id;
+    this.sessionId = consultation.sessionId;
+    this.currentPatient = {
+      name: consultation.patientName,
+      species: consultation.patientSpecies,
+      id: consultation.patientId,
+      dateOfBirth: consultation.patientDob
+    };
+
+    // Load photos if any
+    if (consultation.photos && consultation.photos.length > 0) {
+      this.photos = consultation.photos;
+      this.updatePhotoGrid();
+    }
+
+    // Resume recording
+    this.switchState('recording');
+    this.updatePatientInfo();
+
+    // Start timer from saved duration
+    if (consultation.duration) {
+      this.timerSeconds = consultation.duration;
+    }
+    this.startTimer();
+
+    // Resume MediaRecorder
+    await this.recordingManager.resumeRecording();
+  }
 }
 
 if (document.readyState === 'loading') {

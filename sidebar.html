@@ -3,7 +3,13 @@
 <body>
 <div id="brobyvets-sidebar">
 <div class="sidebar-header">
-<div class="logo"><svg width="32" height="32" viewBox="0 0 100 100"><path d="M20 35C20 25 25 20 35 20C38 20 40 22 40 25C40 28 38 30 35 30C30 30 30 30 30 35C30 40 30 40 35 40C38 40 40 42 40 45C40 48 38 50 35 50C25 50 20 45 20 35Z" fill="#1FC7CA"/><path d="M60 35C60 25 65 20 75 20C78 20 80 22 80 25C80 28 78 30 75 30C70 30 70 30 70 35C70 40 70 40 75 40C78 40 80 42 80 45C40 48 78 50 75 50C65 50 60 45 60 35Z" fill="#1FC7CA"/><path d="M35 55C30 55 25 60 25 65C25 70 30 75 40 80C45 82.5 55 82.5 60 80C70 75 75 70 75 65C75 60 70 55 65 55C60 55 57.5 57.5 55 62.5C52.5 57.5 50 55 45 55C42.5 55 38.75 55 35 55Z" fill="#1FC7CA"/></svg></div>
+<div class="logo">
+<svg width="40" height="40" viewBox="0 0 512 512">
+<path d="M80 175C80 125 125 80 175 80C190 80 200 90 200 105C200 120 190 130 175 130C150 130 150 130 150 155C150 180 150 180 175 180C190 180 200 190 200 205C200 220 190 230 175 230C125 230 80 185 80 175Z" fill="#1FC7CA"/>
+<path d="M305 175C305 125 350 80 400 80C415 80 425 90 425 105C425 120 415 130 400 130C375 130 375 130 375 155C375 180 375 180 400 180C415 180 425 190 425 205C425 220 415 230 400 230C350 230 305 185 305 175Z" fill="#1FC7CA"/>
+<path d="M175 255C150 255 125 280 125 305C125 330 150 355 200 380C225 392.5 275 392.5 300 380C350 355 375 330 375 305C375 280 350 255 325 255C300 255 287.5 267.5 275 292.5C262.5 267.5 250 255 225 255C212.5 255 193.75 255 175 255Z" fill="#1FC7CA"/>
+</svg>
+</div>
 <div class="header-actions">
 <button class="header-btn">Web</button>
 <button class="header-btn" id="logoutBtn" style="display: none;">Logout</button>
@@ -45,6 +51,14 @@
 <!-- Main Content (requires auth) -->
 <div id="main-content" style="display: none;">
 
+<!-- Paused Consultations Grid -->
+<div id="paused-consultations" class="paused-consultations" style="display: none;">
+<div class="paused-header">Paused Consultations</div>
+<div class="paused-grid" id="pausedGrid">
+<!-- Paused consultation cards will be inserted here -->
+</div>
+</div>
+
 <!-- Ready State: Patient selected, ready to start -->
 <div id="ready-state" class="state-view">
 <div class="patient-info">
@@ -83,7 +97,6 @@
 
 <div class="controls">
 <button class="btn-secondary" id="pauseBtn">⏸️ Pause</button>
-<button class="btn-primary" id="submitBtn">✓ Submit</button>
 </div>
 
 <div class="section">
@@ -105,6 +118,10 @@
 <span style="margin-left: auto;">▼</span>
 </div>
 <div class="section-content">General Checkup</div>
+</div>
+
+<div class="submit-section">
+<button class="btn-primary" id="submitBtn">✓ Submit</button>
 </div>
 </div>
 
