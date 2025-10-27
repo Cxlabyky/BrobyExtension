@@ -89,7 +89,7 @@ class ConsultationService {
       console.error('❌ Get consultation error:', error);
       return {
         success: false,
-        error: error.message
+        error: error.message || 'Network error'
       };
     }
   }
@@ -133,7 +133,7 @@ class ConsultationService {
       console.error('❌ Update consultation error:', error);
       return {
         success: false,
-        error: error.message
+        error: error.message || 'Network error'
       };
     }
   }
@@ -223,20 +223,21 @@ class ConsultationService {
       console.error('❌ Consultation completion error:', error);
       return {
         success: false,
-        error: error.message
+        error: error.message || 'Network error'
       };
     }
   }
 
   /**
    * Poll for AI summary generation completion
+   * Matches web app pattern: 60 attempts at 5-second intervals = 5 minutes total
    * @param {string} consultationId
-   * @param {number} maxAttempts - Maximum polling attempts (default 30)
-   * @param {number} intervalMs - Polling interval in milliseconds (default 1000)
+   * @param {number} maxAttempts - Maximum polling attempts (default 60)
+   * @param {number} intervalMs - Polling interval in milliseconds (default 5000)
    * @param {function} onProgress - Optional callback for progress updates
    * @returns {Promise<{success: boolean, summary?: string, error?: string}>}
    */
-  static async pollForSummary(consultationId, maxAttempts = 30, intervalMs = 1000, onProgress = null) {
+  static async pollForSummary(consultationId, maxAttempts = 60, intervalMs = 5000, onProgress = null) {
     console.log('🔄 Starting summary polling:', { consultationId, maxAttempts, intervalMs });
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
