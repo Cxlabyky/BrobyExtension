@@ -17,6 +17,11 @@ class BrobyVetsSidebar {
     // Photo management
     this.photos = [];
     this.uploadingPhotos = new Set();
+
+    // Multi-consult management
+    this.activeConsultations = new Map(); // patientId -> consultation state
+    this.activeConsultationId = null; // Currently viewing consultation
+
     this.init();
   }
 
@@ -25,6 +30,9 @@ class BrobyVetsSidebar {
 
     // Check authentication first
     await this.checkAuthentication();
+
+    // Load saved consultations from storage
+    await this.loadSavedConsultations();
 
     // Setup event listeners
     this.setupEventListeners();
@@ -47,12 +55,14 @@ class BrobyVetsSidebar {
     const loginModal = document.getElementById('login-modal');
     const mainContent = document.getElementById('main-content');
     const logoutBtn = document.getElementById('logoutBtn');
+    const sidebarLogo = document.getElementById('sidebarLogo');
 
     if (authenticated) {
       console.log('✅ User authenticated', { userId: user?.id });
       loginModal.style.display = 'none';
       mainContent.style.display = 'block';
       logoutBtn.style.display = 'block';
+      if (sidebarLogo) sidebarLogo.style.display = 'flex';
 
       // Auto-focus email on next login
       document.getElementById('email')?.blur();
@@ -61,6 +71,7 @@ class BrobyVetsSidebar {
       loginModal.style.display = 'flex';
       mainContent.style.display = 'none';
       logoutBtn.style.display = 'none';
+      if (sidebarLogo) sidebarLogo.style.display = 'none';
 
       // Auto-focus email input
       setTimeout(() => {
@@ -300,24 +311,55 @@ class BrobyVetsSidebar {
     }
   }
 
-  updatePatient(patient) {
+  async updatePatient(patient) {
     console.log('🎯 UPDATE UI:', patient.name);
+
+    // Check if this is a DIFFERENT patient than current
+    const isDifferentPatient = this.currentPatient && this.currentPatient.id !== patient.id;
+
+    if (isDifferentPatient) {
+      console.log('🔄 Different patient detected!', {
+        from: this.currentPatient.name,
+        to: patient.name
+      });
+
+      // Auto-pause and save current consultation if recording
+      await this.handlePatientSwitch();
+    }
+
     this.currentPatient = patient;
 
+    // Check if consultation exists for this patient
+    const existingConsult = this.activeConsultations.get(patient.id);
+
+    if (existingConsult) {
+      console.log('📂 Loading existing consultation for', patient.name);
+      await this.loadConsultation(existingConsult);
+    } else {
+      console.log('🆕 New patient - ready to start consultation');
+      // Show ready state with patient info
+      this.showState('ready');
+      this.updatePatientUI(patient);
+    }
+
+    // Update paused consultations grid
+    this.updatePausedConsultationsGrid();
+
+    console.log('✅ UI updated');
+  }
+
+  updatePatientUI(patient) {
     const nameEls = document.querySelectorAll('.patient-name');
     const detailsEls = document.querySelectorAll('.patient-details');
 
     nameEls.forEach(nameEl => {
       nameEl.textContent = patient.name;
       nameEl.style.color = '#1FC7CA';
-      setTimeout(() => nameEl.style.color = '#FFFFFF', 500);
     });
 
     detailsEls.forEach(detailsEl => {
       detailsEl.textContent = `${patient.species} • ID: ${patient.id} • ${patient.date}`;
     });
-
-    console.log('✅ UI updated');
   }
 
   // State Management
@@ -333,6 +375,219 @@ class BrobyVetsSidebar {
 
     // Show requested state
     document.getElementById(`${state}-state`).style.display = 'flex';
+  }
+
+  // Multi-Consult Management
+  async handlePatientSwitch() {
+    console.log('🔄 Handling patient switch...');
+
+    // If currently recording, auto-pause and save
+    if (this.currentState === 'recording' && this.consultationId) {
+      console.log('💾 Auto-pausing current consultation');
+
+      // Pause the recording
+      if (!this.isPaused) {
+        this.recordingManager.pauseRecording();
+        this.isPaused = true;
+        clearInterval(this.timerInterval);
+      }
+
+      // Save current consultation state
+      const consultState = {
+        patientId: this.currentPatient.id,
+        patient: {...this.currentPatient},
+        consultationId: this.consultationId,
+        sessionId: this.sessionId,
+        recordingToken: this.recordingManager.recordingToken, // CRITICAL: Save token for resume
+        timerSeconds: this.timerSeconds,
+        photos: [...this.photos],
+        state: 'paused',
+        pausedAt: new Date().toISOString()
+      };
+
+      this.activeConsultations.set(this.currentPatient.id, consultState);
+      console.log('✅ Consultation saved', consultState);
+
+      // CRITICAL FIX: Persist to chrome.storage so it survives sidebar reloads
+      await this.saveConsultationsToStorage();
+      console.log('💾 Consultation persisted to chrome.storage');
+    }
+  }
+
+  async loadConsultation(consultState) {
+    console.log('📂 Loading consultation:', consultState);
+
+    // Restore consultation data
+    this.consultationId = consultState.consultationId;
+    this.sessionId = consultState.sessionId;
+    this.timerSeconds = consultState.timerSeconds;
+    this.photos = consultState.photos || [];
+    this.activeConsultationId = consultState.consultationId;
+
+    // CRITICAL: Store recordingToken if available (for resume functionality)
+    // NOTE: Token may not exist if consultation was saved before this fix
+    if (consultState.recordingToken) {
+      this.recordingManager.recordingToken = consultState.recordingToken;
+      console.log('🔑 Recording token restored');
+    } else {
+      console.warn('⚠️ No recording token found in saved state');
+      console.warn('💡 Resume will create a new session (this is expected behavior)');
+    }
+
+    // Update UI with patient info
+    this.updatePatientUI(consultState.patient);
+
+    // Restore to recording state (paused)
+    this.showState('recording');
+    this.isPaused = true;
+
+    // Update timer display
+    this.updateTimer();
+
+    // Update pause button
+    const pauseBtn = document.getElementById('pauseBtn');
+    if (pauseBtn) {
+      pauseBtn.innerHTML = '▶ Resume';
+      document.getElementById('recording-status').textContent = 'Paused';
+    }
+
+    // Reload photos
+    this.renderPhotos();
+
+    console.log('✅ Consultation loaded');
+  }
+
+  updatePausedConsultationsGrid() {
+    const pausedGrid = document.getElementById('pausedGrid');
+    const pausedSection = document.getElementById('paused-consultations');
+
+    if (!pausedGrid || !pausedSection) return;
+
+    // Clear current grid
+    pausedGrid.innerHTML = '';
+
+    // Show/hide section based on active consultations
+    if (this.activeConsultations.size === 0) {
+      pausedSection.style.display = 'none';
+      return;
+    }
+
+    pausedSection.style.display = 'block';
+
+    // Add cards for each paused consultation
+    this.activeConsultations.forEach((consult, patientId) => {
+      const card = document.createElement('div');
+      card.className = 'paused-card';
+      if (patientId === this.currentPatient?.id) {
+        card.classList.add('active');
+      }
+
+      const pausedTime = new Date(consult.pausedAt).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+
+      card.innerHTML = `
+        <div class="paused-card-name">${consult.patient.name}</div>
+        <div class="paused-card-time">
+          <span class="pause-icon">⏸</span>
+          <span>${pausedTime}</span>
+        </div>
+      `;
+
+      // Click handler to switch to this consultation
+      card.addEventListener('click', async () => {
+        console.log('🔄 Switching to paused consultation:', consult.patient.name);
+
+        // Save current consultation if different
+        if (this.currentPatient && this.currentPatient.id !== patientId) {
+          await this.handlePatientSwitch();
+        }
+
+        // Load the clicked consultation
+        this.currentPatient = consult.patient;
+        await this.loadConsultation(consult);
+
+        // Update active state
+        document.querySelectorAll('.paused-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+      });
+
+      pausedGrid.appendChild(card);
+    });
+  }
+
+  // Persistence Layer - Save/Load Consultations
+  async loadSavedConsultations() {
+    console.log('📂 Loading saved consultations from storage...');
+
+    try {
+      const { savedConsultations } = await chrome.storage.local.get('savedConsultations');
+
+      if (savedConsultations && Array.isArray(savedConsultations)) {
+        // Restore Map from saved array with validation
+        let validCount = 0;
+        let invalidCount = 0;
+
+        savedConsultations.forEach(consult => {
+          // Validate consultation data
+          if (consult.patientId && consult.consultationId && consult.patient) {
+            this.activeConsultations.set(consult.patientId, consult);
+            validCount++;
+          } else {
+            console.warn('⚠️ Skipping invalid consultation:', consult);
+            invalidCount++;
+          }
+        });
+
+        console.log(`✅ Loaded ${validCount} valid consultation(s)`,
+          invalidCount > 0 ? `(skipped ${invalidCount} invalid)` : '');
+
+        // Update UI to show paused consultations
+        this.updatePausedConsultationsGrid();
+      } else {
+        console.log('ℹ️ No saved consultations found');
+      }
+    } catch (error) {
+      console.error('❌ Error loading saved consultations:', error);
+      alert('⚠️ Failed to load saved consultations. Some paused recordings may be lost.');
+    }
+  }
+
+  async saveConsultationsToStorage() {
+    console.log('💾 Saving consultations to storage...');
+
+    try {
+      // Convert Map to array for storage
+      const consultationsArray = Array.from(this.activeConsultations.values());
+
+      await chrome.storage.local.set({
+        savedConsultations: consultationsArray
+      });
+
+      console.log(`✅ Saved ${consultationsArray.length} consultation(s) to storage`, {
+        patientIds: consultationsArray.map(c => c.patientId),
+        consultationIds: consultationsArray.map(c => c.consultationId)
+      });
+    } catch (error) {
+      console.error('❌ Error saving consultations:', error);
+      // Don't alert user - this is a background operation
+      // Log the error for debugging but don't interrupt workflow
+    }
+  }
+
+  async clearConsultationFromStorage(patientId) {
+    console.log(`🗑️ Clearing consultation for patient ${patientId} from storage`);
+
+    // Remove from Map
+    this.activeConsultations.delete(patientId);
+
+    // Save updated Map to storage
+    await this.saveConsultationsToStorage();
+
+    // Update UI
+    this.updatePausedConsultationsGrid();
   }
 
   async startRecording() {
@@ -443,11 +698,53 @@ class BrobyVetsSidebar {
       }
 
       this.isPaused = true;
-      pauseBtn.textContent = '▶️ Resume';
+      pauseBtn.innerHTML = '<span class="btn-text">▶️ Resume</span><span class="btn-spinner" style="display:none;"></span>';
+      document.getElementById('recording-status').textContent = 'Paused';
 
     } else {
-      // Resume
-      console.log('▶️ Resuming recording');
+      // Resume - CRITICAL: Create new session for same consultation
+      this.resumeRecordingWithNewSession();
+    }
+  }
+
+  async resumeRecordingWithNewSession() {
+    const pauseBtn = document.getElementById('pauseBtn');
+    const btnText = pauseBtn?.querySelector('.btn-text');
+    const btnSpinner = pauseBtn?.querySelector('.btn-spinner');
+
+    try {
+      console.log('▶️ Resuming recording with NEW session for consultation:', this.consultationId);
+
+      // Show loading state
+      if (pauseBtn) {
+        pauseBtn.disabled = true;
+        if (btnText) btnText.style.display = 'none';
+        if (btnSpinner) btnSpinner.style.display = 'block';
+      }
+
+      // CRITICAL: Create NEW recording session for the SAME consultation
+      console.log('🎤 Creating new recording session for existing consultation...');
+      const sessionResult = await RecordingService.createSession(this.consultationId, {
+        mode: 'summary'
+      });
+
+      if (!sessionResult.success) {
+        throw new Error(sessionResult.error || 'Failed to create new recording session');
+      }
+
+      // Store new session ID and token
+      const oldSessionId = this.sessionId;
+      this.sessionId = sessionResult.session.id;
+      this.recordingManager.sessionId = this.sessionId;
+      this.recordingManager.recordingToken = sessionResult.recordingToken;
+
+      console.log('✅ New recording session created:', {
+        oldSessionId,
+        newSessionId: this.sessionId,
+        consultationId: this.consultationId
+      });
+
+      // Resume MediaRecorder
       this.recordingManager.resumeRecording();
 
       // Resume timer
@@ -457,7 +754,33 @@ class BrobyVetsSidebar {
       }, 1000);
 
       this.isPaused = false;
-      pauseBtn.textContent = '⏸️ Pause';
+
+      // Update button state
+      if (pauseBtn) {
+        pauseBtn.disabled = false;
+        if (btnText) {
+          btnText.textContent = '⏸️ Pause';
+          btnText.style.display = 'block';
+        }
+        if (btnSpinner) btnSpinner.style.display = 'none';
+      }
+      document.getElementById('recording-status').textContent = 'Recording';
+
+      console.log('✅ Recording resumed with new session');
+
+    } catch (error) {
+      console.error('❌ Failed to resume recording:', error);
+      alert(`Failed to resume recording: ${error.message}`);
+
+      // Reset button state
+      if (pauseBtn) {
+        pauseBtn.disabled = false;
+        if (btnText) {
+          btnText.textContent = '▶️ Resume';
+          btnText.style.display = 'block';
+        }
+        if (btnSpinner) btnSpinner.style.display = 'none';
+      }
     }
   }
 
@@ -777,13 +1100,19 @@ class BrobyVetsSidebar {
     this.updatePhotoCount();
   }
 
-  startNewConsult() {
+  async startNewConsult() {
     console.log('🆕 Starting new consult');
 
     // Stop any active polling
     if (this.summaryPollInterval) {
       clearInterval(this.summaryPollInterval);
       this.summaryPollInterval = null;
+    }
+
+    // CRITICAL FIX: Remove completed consultation from storage
+    if (this.currentPatient && this.consultationId) {
+      console.log('🗑️ Removing completed consultation from storage:', this.currentPatient.id);
+      await this.clearConsultationFromStorage(this.currentPatient.id);
     }
 
     // Reset state
@@ -865,6 +1194,15 @@ class BrobyVetsSidebar {
           console.log('💡 User can still manually click "Insert into EzyVet" button');
         } else if (response && response.success) {
           console.log('✅ Summary auto-injected successfully into EzyVet History!');
+
+          // CRITICAL FIX: Remove completed consultation from storage after successful injection
+          if (this.currentPatient && this.consultationId) {
+            console.log('🗑️ Removing completed consultation from storage after injection');
+            this.clearConsultationFromStorage(this.currentPatient.id).catch(err => {
+              console.error('Failed to clear consultation from storage:', err);
+            });
+          }
+
           // Optional: Show a subtle notification to user
           this.showInjectionSuccess();
         } else {
