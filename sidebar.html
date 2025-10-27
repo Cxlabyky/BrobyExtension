@@ -2,51 +2,44 @@
 <html><head><meta charset="UTF-8"><title>BrobyVets</title><link rel="stylesheet" href="sidebar.css"></head>
 <body>
 <div id="brobyvets-sidebar">
+
+<!-- Header -->
 <div class="sidebar-header">
-<div class="logo">
-<svg width="48" height="48" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-<!-- Top Left Toe Pad -->
-<ellipse cx="160" cy="100" rx="45" ry="65" fill="none" stroke="#1FC7CA" stroke-width="35"/>
-<!-- Top Center-Left Toe Pad -->
-<ellipse cx="256" cy="60" rx="45" ry="65" fill="none" stroke="#1FC7CA" stroke-width="35"/>
-<!-- Top Center-Right Toe Pad -->
-<ellipse cx="352" cy="100" rx="45" ry="65" fill="none" stroke="#1FC7CA" stroke-width="35"/>
-<!-- Bottom Left Toe Pad -->
-<ellipse cx="95" cy="180" rx="40" ry="60" fill="none" stroke="#1FC7CA" stroke-width="35"/>
-<!-- Bottom Right Toe Pad -->
-<ellipse cx="417" cy="180" rx="40" ry="60" fill="none" stroke="#1FC7CA" stroke-width="35"/>
-<!-- Main Paw Pad Outline -->
-<path d="M 160 280 C 160 240 180 220 200 210 C 220 200 240 195 256 195 C 272 195 292 200 312 210 C 332 220 352 240 352 280 L 352 340 C 352 380 340 410 320 430 C 300 450 275 460 256 460 C 237 460 212 450 192 430 C 172 410 160 380 160 340 Z" fill="none" stroke="#1FC7CA" stroke-width="35"/>
-<!-- Heart Shape in Center -->
-<path d="M 256 380 L 226 350 C 215 340 210 325 210 310 C 210 285 225 270 245 270 C 255 270 260 275 265 280 C 270 275 275 270 285 270 C 305 270 320 285 320 310 C 320 325 315 340 304 350 Z" fill="none" stroke="#1FC7CA" stroke-width="30" stroke-linejoin="round"/>
-</svg>
+<div class="logo" id="sidebarLogo" style="display:none">
+<img src="icons/icon48.png" alt="Broby" />
 </div>
 <div class="header-actions">
 <button class="header-btn">Web</button>
-<button class="header-btn" id="logoutBtn" style="display: none;">Logout</button>
+<button class="header-btn" id="logoutBtn" style="display:none">Logout</button>
 </div>
 </div>
 
-<!-- Login Modal (Inline) -->
-<div id="login-modal" class="login-modal" style="display: none;">
-<div class="login-modal-content">
+<!-- Paused Consultations Grid -->
+<div class="paused-consults" id="paused-consultations" style="display:none">
+<div class="paused-consults-title">PAUSED CONSULTATIONS</div>
+<div class="paused-grid" id="pausedGrid">
+<!-- Dynamically populated -->
+</div>
+</div>
+
+<!-- Login Modal -->
+<div id="login-modal" class="login-modal">
 <div class="login-modal-header">
 <h2>Sign In</h2>
 <p class="login-subtitle">Enter your credentials to continue</p>
 </div>
-<div class="login-form">
 <div class="input-group">
-<label for="email">Email</label>
+<label>Email</label>
 <input type="email" id="email" placeholder="your@email.com" autocomplete="email" required />
 </div>
 <div class="input-group">
-<label for="password">Password</label>
+<label>Password</label>
 <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" required />
 </div>
-<div id="error-message" class="error-message" style="display: none;"></div>
-<button id="login-btn" class="btn-primary">
+<div id="error-message" class="error-message" style="display:none"></div>
+<button class="btn-start" id="login-btn">
 <span class="btn-text">Sign In</span>
-<span class="btn-spinner" style="display: none;">
+<span class="btn-spinner" style="display:none">
 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
 <path d="M12 2 A10 10 0 0 1 22 12" stroke-linecap="round">
@@ -56,46 +49,31 @@
 </span>
 </button>
 </div>
-</div>
-</div>
 
-<!-- Main Content (requires auth) -->
-<div id="main-content" style="display: none;">
+<!-- Main Content -->
+<div id="main-content" style="display:none">
 
-<!-- Paused Consultations Grid -->
-<div id="paused-consultations" class="paused-consultations" style="display: none;">
-<div class="paused-header">Paused Consultations</div>
-<div class="paused-grid" id="pausedGrid">
-<!-- Paused consultation cards will be inserted here -->
-</div>
-</div>
-
-<!-- Ready State: Patient selected, ready to start -->
+<!-- Ready State (Patient Info + Start Button) -->
 <div id="ready-state" class="state-view">
 <div class="patient-info">
-<div class="patient-name">Select a patient in EzyVet</div>
-<div class="patient-details"></div>
+<div class="patient-name" id="ready-patient-name">Select a patient in EzyVet</div>
+<div class="patient-details" id="ready-patient-details"></div>
 </div>
-<div class="start-section">
 <button class="btn-start" id="startBtn">▶ Start Consult</button>
 </div>
-</div>
 
-<!-- Recording State: Active recording with timer and waveform -->
-<div id="recording-state" class="state-view" style="display: none;">
+<!-- Recording State -->
+<div id="recording-state" class="state-view" style="display:none">
 <div class="patient-info">
-<div class="patient-name">Bunny</div>
-<div class="patient-details">Dog • ID: 12345 • 23/10/2025</div>
+<div class="patient-name" id="recording-patient-name">Bunny</div>
+<div class="patient-details" id="recording-patient-details">Dog • ID: 12345 • 23/10/2025</div>
 </div>
-
 <div class="recording-badge">
-<div class="recording-dot"></div>
-<span>Recording</span>
+<span class="recording-dot"></span>
+<span id="recording-status">Recording</span>
 </div>
-
-<div class="timer" id="timer">00:00:00</div>
-
-<div class="waveform">
+<div class="timer" id="timer">00:00:01</div>
+<div class="waveform" id="waveform">
 <div class="waveform-bar"></div>
 <div class="waveform-bar"></div>
 <div class="waveform-bar"></div>
@@ -105,11 +83,7 @@
 <div class="waveform-bar"></div>
 <div class="waveform-bar"></div>
 </div>
-
-<div class="controls">
-<button class="btn-secondary" id="pauseBtn">⏸️ Pause</button>
-</div>
-
+<button class="btn-secondary" id="pauseBtn">⏸ Pause</button>
 <div class="section">
 <div class="section-header">
 <span>📷</span>
@@ -119,30 +93,25 @@
 <div class="photos-grid" id="photosGrid">
 <div class="photo-box" id="addPhotoBtn">+</div>
 </div>
-<input type="file" id="photoInput" accept="image/*" multiple style="display: none;">
+<input type="file" id="photoInput" accept="image/*" multiple style="display:none">
 </div>
-
 <div class="section">
 <div class="section-header">
 <span>📋</span>
 <span>Template</span>
-<span style="margin-left: auto;">▼</span>
+<span style="margin-left:auto">▼</span>
 </div>
 <div class="section-content">General Checkup</div>
 </div>
-
-<div class="submit-section">
 <button class="btn-primary" id="submitBtn">✓ Submit</button>
 </div>
-</div>
 
-<!-- Processing State: Generating summary -->
-<div id="processing-state" class="state-view" style="display: none;">
+<!-- Processing State -->
+<div id="processing-state" class="state-view" style="display:none">
 <div class="patient-info">
-<div class="patient-name">Bunny</div>
-<div class="patient-details">Dog • ID: 12345 • 23/10/2025</div>
+<div class="patient-name" id="processing-patient-name">Bunny</div>
+<div class="patient-details" id="processing-patient-details">Dog • ID: 12345 • 23/10/2025</div>
 </div>
-
 <div class="processing-content">
 <div class="processing-spinner">
 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#1FC7CA" stroke-width="2">
@@ -157,18 +126,16 @@
 </div>
 </div>
 
-<!-- Completed State: Summary generated -->
-<div id="completed-state" class="state-view" style="display: none;">
+<!-- Completed State -->
+<div id="completed-state" class="state-view" style="display:none">
 <div class="patient-info">
-<div class="patient-name">Bunny</div>
-<div class="patient-details">Dog • ID: 12345 • 23/10/2025</div>
+<div class="patient-name" id="completed-patient-name">Bunny</div>
+<div class="patient-details" id="completed-patient-details">Dog • ID: 12345 • 23/10/2025</div>
 </div>
-
 <div class="completed-badge">
 <span>✓</span>
 <span>Consultation Complete</span>
 </div>
-
 <div class="summary-section">
 <div class="summary-header">
 <span>📝</span>
@@ -182,7 +149,6 @@
 <p><strong>Plan:</strong> Return in 12 months for annual exam. Owner advised on dental care and nutrition.</p>
 </div>
 </div>
-
 <div class="completed-actions">
 <button class="btn-secondary" id="newConsultBtn">New Consult</button>
 <button class="btn-primary" id="insertBtn">Insert into EzyVet</button>
@@ -190,8 +156,8 @@
 </div>
 
 </div>
-
 </div>
+
 <script src="config.js"></script>
 <script src="utils/retry.js"></script>
 <script src="auth/token-manager.js"></script>
@@ -203,4 +169,5 @@
 <script src="recording/media-recorder.service.js"></script>
 <script src="recording/recording-manager.js"></script>
 <script src="sidebar.js"></script>
-</body></html>
+</body>
+</html>
