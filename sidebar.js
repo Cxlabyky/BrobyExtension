@@ -744,8 +744,9 @@ class BrobyVetsSidebar {
         consultationId: this.consultationId
       });
 
-      // Resume MediaRecorder
-      this.recordingManager.resumeRecording();
+      // Resume MediaRecorder with patient context (CRITICAL FIX for chunkCallback)
+      // Must call startRecording(patient) to properly initialize chunk callback
+      await this.recordingManager.startRecording(this.currentPatient);
 
       // Resume timer
       this.timerInterval = setInterval(() => {
@@ -799,8 +800,10 @@ class BrobyVetsSidebar {
     // Stop recording and complete session
     const result = await this.recordingManager.stopRecording();
 
-    if (!result.success) {
-      alert(`❌ Failed to submit recording: ${result.error}`);
+    if (!result || !result.success) {
+      const errorMsg = result?.error || 'Unknown error occurred';
+      console.error('❌ Stop recording failed:', errorMsg);
+      alert(`❌ Failed to submit recording: ${errorMsg}`);
       // Go back to recording state
       this.showState('recording');
       // Restart timer
@@ -1053,6 +1056,24 @@ class BrobyVetsSidebar {
     if (badge) {
       badge.textContent = count;
     }
+  }
+
+  renderPhotos() {
+    // Clear existing photos from grid (except the add button)
+    const grid = document.getElementById('photosGrid');
+    const addBtn = document.getElementById('addPhotoBtn');
+    if (!grid || !addBtn) return;
+
+    // Remove all photo thumbnails
+    const existingPhotos = grid.querySelectorAll('.photo-thumbnail');
+    existingPhotos.forEach(photo => photo.remove());
+
+    // Re-render all photos
+    this.photos.forEach(photo => {
+      this.addPhotoToGrid(photo.id, photo.url, false);
+    });
+
+    this.updatePhotoCount();
   }
 
   async deletePhoto(photoId) {
