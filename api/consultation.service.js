@@ -139,7 +139,7 @@ class ConsultationService {
   }
 
   /**
-   * Generate AI summary for consultation
+   * Generate AI summary for consultation (NON-STREAMING - legacy)
    * @param {string} consultationId
    * @returns {Promise<{success: boolean, summary?: string, error?: string}>}
    */
@@ -176,6 +176,136 @@ class ConsultationService {
 
     } catch (error) {
       console.error('❌ Summary generation error:', error);
+      return {
+        success: false,
+        error: error.message || 'Network error'
+      };
+    }
+  }
+
+  /**
+   * Generate AI summary with STREAMING (matches web app implementation)
+   * Uses Server-Sent Events (SSE) for real-time progressive updates
+   * @param {string} consultationId
+   * @param {function(string): void} onStreamUpdate - Callback for progressive text updates
+   * @returns {Promise<{success: boolean, summary?: string, error?: string}>}
+   */
+  static async generateSummaryStream(consultationId, onStreamUpdate) {
+    const startTime = Date.now();
+
+    try {
+      console.log('🎬 Starting STREAMING summary generation for:', consultationId);
+
+      const authHeaders = await TokenManager.getAuthHeaders();
+
+      const response = await fetch(
+        `${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.GENERATE_SUMMARY_STREAM(consultationId)}`,
+        {
+          method: 'POST',
+          headers: authHeaders
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ Streaming summary generation failed:', errorData.error);
+        return {
+          success: false,
+          error: errorData.error || `HTTP error! status: ${response.status}`
+        };
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('Response body is not readable');
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let fullSummary = '';
+
+      // Read stream chunks
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          const duration = Date.now() - startTime;
+          console.log('✅ Stream complete', {
+            consultationId,
+            summaryLength: fullSummary.length,
+            duration: `${duration}ms`
+          });
+          break;
+        }
+
+        // Decode chunk
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete lines (SSE format: "data: {json}\n")
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.replace('data: ', '').trim();
+
+            // Check for completion signal
+            if (data === '[DONE]') {
+              console.log('✅ Summary generation complete (DONE signal)', { consultationId });
+              break;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+
+              // Handle content chunk - progressive text building
+              if (parsed.content) {
+                fullSummary += parsed.content;
+                if (onStreamUpdate) {
+                  onStreamUpdate(fullSummary); // Update UI progressively
+                }
+              }
+
+              // Handle correction event - replace displayed text with corrected version
+              if (parsed.type === 'correction' && parsed.correctedText) {
+                console.log('📤 Received correction event', {
+                  consultationId,
+                  originalLength: fullSummary.length,
+                  correctedLength: parsed.correctedText.length
+                });
+                fullSummary = parsed.correctedText;
+                if (onStreamUpdate) {
+                  onStreamUpdate(fullSummary); // Update UI with corrected text
+                }
+              }
+
+              // Handle error event
+              if (parsed.type === 'error') {
+                console.error('❌ Stream error event:', parsed.message);
+                throw new Error(parsed.message || 'Stream error');
+              }
+
+            } catch (parseError) {
+              // Ignore non-JSON lines (keep-alive pings, etc.)
+              if (data && data !== ':keep-alive') {
+                console.warn('⚠️ Failed to parse SSE data:', data, parseError);
+              }
+            }
+          }
+        }
+      }
+
+      const duration = Date.now() - startTime;
+      console.log('✅ Streaming summary generated:', fullSummary.length, 'characters in', duration, 'ms');
+
+      return {
+        success: true,
+        summary: fullSummary
+      };
+
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      console.error('❌ Streaming summary generation error:', error, `(${duration}ms)`);
       return {
         success: false,
         error: error.message || 'Network error'

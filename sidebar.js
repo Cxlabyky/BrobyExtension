@@ -816,11 +816,25 @@ class BrobyVetsSidebar {
 
     console.log('✅ Recording submitted');
 
-    // TRIGGER summary generation
-    console.log('🤖 Triggering AI summary generation...');
+    // TRIGGER summary generation with STREAMING
+    console.log('🎬 Triggering AI summary STREAMING generation...');
 
     try {
-      const summaryResult = await ConsultationService.generateSummary(this.consultationId);
+      // Show completed state immediately with loading message
+      this.showState('completed');
+      const summaryContent = document.getElementById('summaryContent');
+      if (summaryContent) {
+        summaryContent.innerHTML = '<p style="color: #6b7280; font-style: italic;">🤖 Generating AI summary... (streaming)</p>';
+      }
+
+      // Use streaming summary generation with progressive UI updates
+      const summaryResult = await ConsultationService.generateSummaryStream(
+        this.consultationId,
+        (partialSummary) => {
+          // Progressive UI update callback - called for each chunk
+          this.updateStreamingSummary(partialSummary);
+        }
+      );
 
       if (summaryResult.success) {
         // Validate that summary actually exists
@@ -831,10 +845,11 @@ class BrobyVetsSidebar {
           return;
         }
 
-        console.log('✅ Summary generated!');
+        console.log('✅ Summary streaming complete!');
+        // Final update with complete summary
         this.showCompletedState(summaryResult.summary);
       } else {
-        console.log('⚠️ Summary generation failed:', summaryResult.error);
+        console.log('⚠️ Summary streaming failed:', summaryResult.error);
 
         // Check if it's a transcription issue
         if (summaryResult.error?.includes('No transcript') || summaryResult.error?.includes('transcription')) {
@@ -848,9 +863,23 @@ class BrobyVetsSidebar {
         }
       }
     } catch (error) {
-      console.error('❌ Error, falling back to polling...', error);
+      console.error('❌ Streaming error, falling back to polling...', error);
       this.startSummaryPolling();
     }
+  }
+
+  /**
+   * Update summary content during streaming (progressive updates)
+   * Called for each chunk received from the backend
+   * @param {string} partialSummary - Current accumulated summary text
+   */
+  updateStreamingSummary(partialSummary) {
+    const summaryContent = document.getElementById('summaryContent');
+    if (!summaryContent) return;
+
+    // Format and display the partial summary with streaming indicator
+    const formattedSummary = this.formatSummary(partialSummary);
+    summaryContent.innerHTML = formattedSummary + '<span style="color: #6b7280; font-style: italic;"> ▋</span>'; // Blinking cursor effect
   }
 
   startSummaryPolling() {
