@@ -10,9 +10,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .state-view{flex:1;padding:20px 16px;display:flex;flex-direction:column;overflow-y:auto}
 
 /* Patient Info */
-.patient-info{text-align:center;margin-bottom:20px}
-.patient-name{font-size:20px;font-weight:600;margin-bottom:8px;color:#000000}
-.patient-details{font-size:14px;color:#666666}
+.patient-info{text-align:center;margin-bottom:20px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:16px}
+.patient-name{font-size:22px;font-weight:700;margin-bottom:6px;color:#1FC7CA}
+.patient-details{font-size:13px;color:#666666}
 
 /* Ready State */
 .start-section{display:flex;justify-content:center;align-items:center;flex:1}
@@ -20,11 +20,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .btn-start:hover{background:#17A5A8;transform:translateY(-2px)}
 
 /* Recording State */
-.recording-badge{display:flex;align-items:center;justify-content:center;gap:8px;color:#4CD964;font-size:14px;margin-bottom:16px}
-.recording-dot{width:8px;height:8px;background:#4CD964;border-radius:50%;animation:pulse 1.5s infinite}
+.recording-badge{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#FFE8E8;color:#FF3B30;font-size:13px;font-weight:500;padding:6px 12px;border-radius:16px}
+.recording-dot{width:8px;height:8px;background:#FF3B30;border-radius:50%;animation:pulse 1.5s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
 
-.timer{font-size:48px;font-weight:700;text-align:center;margin:16px 0;letter-spacing:2px}
+.timer{font-size:56px;font-weight:700;text-align:center;margin:0 0 20px 0;letter-spacing:3px;color:#1FC7CA}
 
 .waveform{display:flex;justify-content:center;align-items:center;gap:6px;height:50px;margin:20px 0}
 .waveform-bar{width:5px;background:linear-gradient(180deg,#1FC7CA 0%,#17A5A8 100%);border-radius:3px;animation:wave 1.2s ease-in-out infinite}
@@ -39,8 +39,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 @keyframes wave{0%,100%{height:8px}50%{height:35px}}
 
 .controls{display:flex;gap:12px;margin:20px 0}
-.btn-secondary{flex:1;padding:12px;background:#FFB800;border:none;border-radius:10px;color:#000000;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s}
-.btn-secondary:hover{background:#E5A600;transform:translateY(-1px)}
+.btn-secondary{flex:1;padding:14px;background:#FFFFFF;border:2px solid #E5E5E5;border-radius:10px;color:#000000;font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s}
+.btn-secondary:hover{background:#F5F5F5;border-color:#1FC7CA;transform:translateY(-1px)}
 .btn-primary{width:100%;padding:14px;background:#1FC7CA;border:none;border-radius:10px;color:#FFF;font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s}
 .btn-primary:hover{background:#17A5A8;transform:translateY(-1px)}
 .submit-section{margin-top:16px}
@@ -109,11 +109,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .paused-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 
 /* Paused Consultation Card */
-.paused-card{background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:16px;cursor:pointer;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.05)}
+.paused-card{background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;padding:12px;cursor:pointer;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.05)}
 .paused-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.1);border-color:#1FC7CA}
-.paused-card-patient{font-size:15px;font-weight:600;color:#000000;margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.paused-card-time{display:flex;align-items:center;gap:6px;font-size:13px;color:#666666}
-.paused-card-icon{font-size:14px;color:#FFB800}
+.paused-card-patient{font-size:14px;font-weight:600;color:#000000;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.paused-card-time{display:flex;align-items:center;gap:4px;font-size:12px;color:#666666}
+.paused-card-icon{font-size:12px;color:#FFB800}
 
 /* Responsive Grid for Smaller Screens */
 @media (max-width:800px){.paused-grid{grid-template-columns:repeat(3,1fr)}}
