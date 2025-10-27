@@ -820,6 +820,14 @@ class BrobyVetsSidebar {
       const summaryResult = await ConsultationService.generateSummary(this.consultationId);
 
       if (summaryResult.success) {
+        // Validate that summary actually exists
+        if (!summaryResult.summary || summaryResult.summary.trim() === '') {
+          console.error('❌ Backend returned success but summary is empty:', summaryResult);
+          console.log('⚠️ Fallback to polling for summary...');
+          this.startSummaryPolling();
+          return;
+        }
+
         console.log('✅ Summary generated!');
         this.showCompletedState(summaryResult.summary);
       } else {
@@ -896,9 +904,19 @@ class BrobyVetsSidebar {
     console.log('✅ Recording complete', { summaryLength: summary?.length });
     this.showState('completed');
 
+    // Validate summary exists and is not empty
+    if (!summary || summary.trim() === '' || summary === 'undefined') {
+      console.error('❌ Invalid summary received:', summary);
+      const summaryContent = document.getElementById('summaryContent');
+      if (summaryContent) {
+        summaryContent.innerHTML = '<p style="color: #ff6b6b;">⚠️ Summary generation failed. Please try recording again or contact support.</p>';
+      }
+      return;
+    }
+
     // Display the real AI summary from backend
     const summaryContent = document.getElementById('summaryContent');
-    if (summaryContent && summary) {
+    if (summaryContent) {
       // Format the summary for better readability
       const formattedSummary = this.formatSummary(summary);
       summaryContent.innerHTML = formattedSummary;
@@ -907,7 +925,7 @@ class BrobyVetsSidebar {
       // Automatically inject summary into EzyVet after displaying
       this.autoInjectIntoEzyVet(summary);
     } else {
-      console.error('❌ Summary content element not found or summary is empty');
+      console.error('❌ Summary content element not found');
     }
   }
 
@@ -1143,6 +1161,13 @@ class BrobyVetsSidebar {
 
     const summaryText = summaryContent.innerText;
 
+    // Validate summary before insertion
+    if (!summaryText || summaryText.trim() === '' || summaryText === 'undefined') {
+      console.error('❌ Cannot insert invalid summary:', summaryText);
+      alert('❌ Cannot insert summary: No valid summary available.');
+      return;
+    }
+
     // Send message to content script to insert into EzyVet
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]) {
@@ -1169,6 +1194,12 @@ class BrobyVetsSidebar {
    */
   async autoInjectIntoEzyVet(summary) {
     console.log('🎯 Auto-injecting summary into EzyVet History form...');
+
+    // Validate summary before injection
+    if (!summary || summary.trim() === '' || summary === 'undefined') {
+      console.error('❌ Cannot inject invalid summary:', summary);
+      return;
+    }
 
     try {
       // Query for EzyVet tabs
