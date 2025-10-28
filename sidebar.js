@@ -1078,8 +1078,27 @@ class BrobyVetsSidebar {
           console.error('❌ Summary polling timeout after', maxAttempts, 'attempts');
           clearInterval(this.summaryPollInterval);
           this.summaryPollInterval = null;
-          alert('⚠️ Summary generation took longer than expected. Please refresh to check status.');
-          this.showState('ready');
+
+          // Navigate to completed state and show error message
+          this.showState('completed');
+          const summaryContent = document.getElementById('summaryContent');
+          if (summaryContent) {
+            const message = '⚠️ Summary Generation Timeout\n\n' +
+                          'The AI summary took longer than expected to generate.\n\n' +
+                          'This may happen if:\n' +
+                          '• The recording was very long\n' +
+                          '• Server is experiencing high load\n' +
+                          '• Network connection issues\n\n' +
+                          'You can try:\n' +
+                          '• Reload the extension and check if summary completed\n' +
+                          '• Start a new consultation\n' +
+                          '• Contact support if this persists';
+
+            summaryContent.value = message;
+            summaryContent.style.color = '#DC2626';
+            summaryContent.style.fontStyle = 'italic';
+            summaryContent.style.backgroundColor = '#FEF2F2';
+          }
         } else {
           console.log(`⏳ AI summary not ready yet (attempt ${pollAttempts}/${maxAttempts})`);
         }
