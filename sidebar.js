@@ -991,13 +991,52 @@ class BrobyVetsSidebar {
           onError: (error) => {
             console.error('❌ Summary error:', error);
 
-            // Check if it's a transcription issue
-            if (error.message?.includes('No transcript') || error.message?.includes('transcription')) {
-              this.showState('ready');
-              alert('⚠️ Recording failed to transcribe.\n\nPossible causes:\n- Recording too short (need 15+ seconds)\n- No audio detected\n- Background transcription issue\n\nPlease try recording again and speak clearly into the microphone.');
-            } else {
-              alert('❌ Summary generation failed: ' + error.message);
-              this.showState('recording');
+            // Show error gracefully in textarea instead of disruptive alert
+            this.showState('completed');
+
+            const summaryContent = document.getElementById('summaryContent');
+            if (summaryContent) {
+              let message = '';
+              const errorMsg = error.message || String(error);
+
+              // Detect non-medical content
+              if (errorMsg.includes('NO_MEDICAL_CONTENT')) {
+                message = '⚠️ No Medical Information Detected\n\n' +
+                          'This recording does not appear to contain medical consultation information.\n\n' +
+                          'Please ensure you are discussing:\n' +
+                          '• Patient symptoms or conditions\n' +
+                          '• Examination findings and vital signs\n' +
+                          '• Diagnostic procedures or test results\n' +
+                          '• Treatment plans and medications\n' +
+                          '• Follow-up care instructions\n\n' +
+                          'Tip: Avoid casual conversation and focus on clinical information.';
+              }
+              // Detect transcription failures
+              else if (errorMsg.includes('No transcript') || errorMsg.includes('transcription')) {
+                message = '⚠️ Recording Transcription Failed\n\n' +
+                          'Your audio could not be transcribed successfully.\n\n' +
+                          'Possible causes:\n' +
+                          '• Recording too short (minimum 15 seconds)\n' +
+                          '• No clear audio detected\n' +
+                          '• Microphone not working properly\n' +
+                          '• Background noise too loud\n\n' +
+                          'Please try recording again with clear speech.';
+              }
+              // Generic error
+              else {
+                message = '⚠️ Summary Generation Failed\n\n' +
+                          'Unable to generate consultation summary.\n\n' +
+                          'Error details:\n' + errorMsg + '\n\n' +
+                          'Please try again or contact support if the issue persists.';
+              }
+
+              // Display error message in textarea
+              summaryContent.value = message;
+
+              // Style the textarea to indicate error state
+              summaryContent.style.color = '#DC2626'; // Red text
+              summaryContent.style.fontStyle = 'italic';
+              summaryContent.style.backgroundColor = '#FEF2F2'; // Light red background
             }
           }
         }
