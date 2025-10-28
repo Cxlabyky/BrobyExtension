@@ -414,19 +414,13 @@ class BrobyVetsSidebar {
         this.templates = result.templates || [];
         console.log('✅ Templates loaded:', this.templates.length, this.templates);
 
-        // Set default template if available
-        if (this.templates.length > 0 && !this.selectedTemplate) {
-          this.selectedTemplate = this.templates[0];
-          console.log('✅ Default template selected:', this.selectedTemplate.name);
-          this.updateTemplateDisplay();
-        } else if (this.templates.length === 0) {
+        // Don't auto-select any template - let user choose or use default (no template)
+        if (this.templates.length === 0) {
           console.warn('⚠️ No templates found in database');
-          // Update UI to show no templates available
-          const templateName = document.getElementById('template-name');
-          if (templateName) {
-            templateName.textContent = 'No templates available';
-          }
         }
+
+        // Update display to show "Default (No Template)" initially
+        this.updateTemplateDisplay();
       } else {
         console.error('❌ Failed to load templates:', result.error);
         // Update UI to show error
@@ -447,8 +441,12 @@ class BrobyVetsSidebar {
 
   updateTemplateDisplay() {
     const templateName = document.getElementById('template-name');
-    if (templateName && this.selectedTemplate) {
-      templateName.textContent = this.selectedTemplate.name;
+    if (templateName) {
+      if (this.selectedTemplate) {
+        templateName.textContent = this.selectedTemplate.name;
+      } else {
+        templateName.textContent = 'Default (No Template)';
+      }
     }
   }
 
@@ -499,13 +497,22 @@ class BrobyVetsSidebar {
 
     console.log('📋 Filtered templates:', filtered.length);
 
+    // Build "Default (No Template)" option at the top
+    const defaultOption = `
+      <div class="template-item" data-template-id="none" style="padding:10px; cursor:pointer; border-bottom:1px solid #E5E7EB; font-size:13px; ${!this.selectedTemplate ? 'background:#F0F9FF' : ''}">
+        <div style="font-weight:500; color:#111827">Default (No Template)</div>
+        <div style="font-size:11px; color:#6B7280; margin-top:2px">Use system default summary format</div>
+      </div>
+    `;
+
     if (filtered.length === 0) {
-      templateList.innerHTML = '<div style="padding:12px; text-align:center; color:#9CA3AF; font-size:12px">No templates found</div>';
+      // Show default option even if no templates match search
+      templateList.innerHTML = defaultOption + '<div style="padding:12px; text-align:center; color:#9CA3AF; font-size:12px">No templates found</div>';
       return;
     }
 
-    // Build template items
-    templateList.innerHTML = filtered
+    // Build template items with default option at top
+    const templateItems = filtered
       .map(
         template => `
         <div class="template-item" data-template-id="${template.id}" style="padding:10px; cursor:pointer; border-bottom:1px solid #F3F4F6; font-size:13px; ${this.selectedTemplate?.id === template.id ? 'background:#F0F9FF' : ''}">
@@ -515,6 +522,8 @@ class BrobyVetsSidebar {
       `
       )
       .join('');
+
+    templateList.innerHTML = defaultOption + templateItems;
 
     // Add click handlers
     templateList.querySelectorAll('.template-item').forEach(item => {
@@ -526,6 +535,15 @@ class BrobyVetsSidebar {
   }
 
   selectTemplate(templateId) {
+    // Handle "Default (No Template)" option
+    if (templateId === 'none') {
+      console.log('📋 Template cleared - using default (no template)');
+      this.selectedTemplate = null;
+      this.updateTemplateDisplay();
+      this.hideTemplateDropdown();
+      return;
+    }
+
     const template = this.templates.find(t => t.id === templateId);
 
     if (template) {
