@@ -24,7 +24,6 @@ const CONFIG = {
     CONSULTATIONS: '/consultations',
     CONSULTATION_BY_ID: (id) => `/consultations/${id}`,
     GENERATE_SUMMARY: (id) => `/consultations/${id}/generate-summary`,
-    GENERATE_SUMMARY_STREAM: (id) => `/consultations/${id}/generate-summary-stream`, // NEW: Streaming endpoint
     PROCESSING_STATUS: (id) => `/consultations/${id}/processing-status`,
     UPLOAD_PHOTO: (id) => `/consultations/${id}/photos`,
 

@@ -31,9 +31,6 @@ class BrobyVetsSidebar {
     // Check authentication first
     await this.checkAuthentication();
 
-    // Load saved consultations from storage
-    await this.loadSavedConsultations();
-
     // Setup event listeners
     this.setupEventListeners();
 
@@ -398,7 +395,6 @@ class BrobyVetsSidebar {
         patient: {...this.currentPatient},
         consultationId: this.consultationId,
         sessionId: this.sessionId,
-        recordingToken: this.recordingManager.recordingToken, // CRITICAL: Save token for resume
         timerSeconds: this.timerSeconds,
         photos: [...this.photos],
         state: 'paused',
@@ -407,10 +403,6 @@ class BrobyVetsSidebar {
 
       this.activeConsultations.set(this.currentPatient.id, consultState);
       console.log('✅ Consultation saved', consultState);
-
-      // CRITICAL FIX: Persist to chrome.storage so it survives sidebar reloads
-      await this.saveConsultationsToStorage();
-      console.log('💾 Consultation persisted to chrome.storage');
     }
   }
 
@@ -423,16 +415,6 @@ class BrobyVetsSidebar {
     this.timerSeconds = consultState.timerSeconds;
     this.photos = consultState.photos || [];
     this.activeConsultationId = consultState.consultationId;
-
-    // CRITICAL: Store recordingToken if available (for resume functionality)
-    // NOTE: Token may not exist if consultation was saved before this fix
-    if (consultState.recordingToken) {
-      this.recordingManager.recordingToken = consultState.recordingToken;
-      console.log('🔑 Recording token restored');
-    } else {
-      console.warn('⚠️ No recording token found in saved state');
-      console.warn('💡 Resume will create a new session (this is expected behavior)');
-    }
 
     // Update UI with patient info
     this.updatePatientUI(consultState.patient);
@@ -516,78 +498,6 @@ class BrobyVetsSidebar {
 
       pausedGrid.appendChild(card);
     });
-  }
-
-  // Persistence Layer - Save/Load Consultations
-  async loadSavedConsultations() {
-    console.log('📂 Loading saved consultations from storage...');
-
-    try {
-      const { savedConsultations } = await chrome.storage.local.get('savedConsultations');
-
-      if (savedConsultations && Array.isArray(savedConsultations)) {
-        // Restore Map from saved array with validation
-        let validCount = 0;
-        let invalidCount = 0;
-
-        savedConsultations.forEach(consult => {
-          // Validate consultation data
-          if (consult.patientId && consult.consultationId && consult.patient) {
-            this.activeConsultations.set(consult.patientId, consult);
-            validCount++;
-          } else {
-            console.warn('⚠️ Skipping invalid consultation:', consult);
-            invalidCount++;
-          }
-        });
-
-        console.log(`✅ Loaded ${validCount} valid consultation(s)`,
-          invalidCount > 0 ? `(skipped ${invalidCount} invalid)` : '');
-
-        // Update UI to show paused consultations
-        this.updatePausedConsultationsGrid();
-      } else {
-        console.log('ℹ️ No saved consultations found');
-      }
-    } catch (error) {
-      console.error('❌ Error loading saved consultations:', error);
-      alert('⚠️ Failed to load saved consultations. Some paused recordings may be lost.');
-    }
-  }
-
-  async saveConsultationsToStorage() {
-    console.log('💾 Saving consultations to storage...');
-
-    try {
-      // Convert Map to array for storage
-      const consultationsArray = Array.from(this.activeConsultations.values());
-
-      await chrome.storage.local.set({
-        savedConsultations: consultationsArray
-      });
-
-      console.log(`✅ Saved ${consultationsArray.length} consultation(s) to storage`, {
-        patientIds: consultationsArray.map(c => c.patientId),
-        consultationIds: consultationsArray.map(c => c.consultationId)
-      });
-    } catch (error) {
-      console.error('❌ Error saving consultations:', error);
-      // Don't alert user - this is a background operation
-      // Log the error for debugging but don't interrupt workflow
-    }
-  }
-
-  async clearConsultationFromStorage(patientId) {
-    console.log(`🗑️ Clearing consultation for patient ${patientId} from storage`);
-
-    // Remove from Map
-    this.activeConsultations.delete(patientId);
-
-    // Save updated Map to storage
-    await this.saveConsultationsToStorage();
-
-    // Update UI
-    this.updatePausedConsultationsGrid();
   }
 
   async startRecording() {
@@ -698,55 +608,12 @@ class BrobyVetsSidebar {
       }
 
       this.isPaused = true;
-      pauseBtn.innerHTML = '<span class="btn-text">▶️ Resume</span><span class="btn-spinner" style="display:none;"></span>';
-      document.getElementById('recording-status').textContent = 'Paused';
+      pauseBtn.textContent = '▶️ Resume';
 
     } else {
-      // Resume - CRITICAL: Create new session for same consultation
-      this.resumeRecordingWithNewSession();
-    }
-  }
-
-  async resumeRecordingWithNewSession() {
-    const pauseBtn = document.getElementById('pauseBtn');
-    const btnText = pauseBtn?.querySelector('.btn-text');
-    const btnSpinner = pauseBtn?.querySelector('.btn-spinner');
-
-    try {
-      console.log('▶️ Resuming recording with NEW session for consultation:', this.consultationId);
-
-      // Show loading state
-      if (pauseBtn) {
-        pauseBtn.disabled = true;
-        if (btnText) btnText.style.display = 'none';
-        if (btnSpinner) btnSpinner.style.display = 'block';
-      }
-
-      // CRITICAL: Create NEW recording session for the SAME consultation
-      console.log('🎤 Creating new recording session for existing consultation...');
-      const sessionResult = await RecordingService.createSession(this.consultationId, {
-        mode: 'summary'
-      });
-
-      if (!sessionResult.success) {
-        throw new Error(sessionResult.error || 'Failed to create new recording session');
-      }
-
-      // Store new session ID and token
-      const oldSessionId = this.sessionId;
-      this.sessionId = sessionResult.session.id;
-      this.recordingManager.sessionId = this.sessionId;
-      this.recordingManager.recordingToken = sessionResult.recordingToken;
-
-      console.log('✅ New recording session created:', {
-        oldSessionId,
-        newSessionId: this.sessionId,
-        consultationId: this.consultationId
-      });
-
-      // Resume MediaRecorder with patient context (CRITICAL FIX for chunkCallback)
-      // Must call startRecording(patient) to properly initialize chunk callback
-      await this.recordingManager.startRecording(this.currentPatient);
+      // Resume
+      console.log('▶️ Resuming recording');
+      this.recordingManager.resumeRecording();
 
       // Resume timer
       this.timerInterval = setInterval(() => {
@@ -755,33 +622,7 @@ class BrobyVetsSidebar {
       }, 1000);
 
       this.isPaused = false;
-
-      // Update button state
-      if (pauseBtn) {
-        pauseBtn.disabled = false;
-        if (btnText) {
-          btnText.textContent = '⏸️ Pause';
-          btnText.style.display = 'block';
-        }
-        if (btnSpinner) btnSpinner.style.display = 'none';
-      }
-      document.getElementById('recording-status').textContent = 'Recording';
-
-      console.log('✅ Recording resumed with new session');
-
-    } catch (error) {
-      console.error('❌ Failed to resume recording:', error);
-      alert(`Failed to resume recording: ${error.message}`);
-
-      // Reset button state
-      if (pauseBtn) {
-        pauseBtn.disabled = false;
-        if (btnText) {
-          btnText.textContent = '▶️ Resume';
-          btnText.style.display = 'block';
-        }
-        if (btnSpinner) btnSpinner.style.display = 'none';
-      }
+      pauseBtn.textContent = '⏸️ Pause';
     }
   }
 
@@ -800,10 +641,8 @@ class BrobyVetsSidebar {
     // Stop recording and complete session
     const result = await this.recordingManager.stopRecording();
 
-    if (!result || !result.success) {
-      const errorMsg = result?.error || 'Unknown error occurred';
-      console.error('❌ Stop recording failed:', errorMsg);
-      alert(`❌ Failed to submit recording: ${errorMsg}`);
+    if (!result.success) {
+      alert(`❌ Failed to submit recording: ${result.error}`);
       // Go back to recording state
       this.showState('recording');
       // Restart timer
@@ -816,40 +655,17 @@ class BrobyVetsSidebar {
 
     console.log('✅ Recording submitted');
 
-    // TRIGGER summary generation with STREAMING
-    console.log('🎬 Triggering AI summary STREAMING generation...');
+    // TRIGGER summary generation
+    console.log('🤖 Triggering AI summary generation...');
 
     try {
-      // Show completed state immediately with loading message
-      this.showState('completed');
-      const summaryContent = document.getElementById('summaryContent');
-      if (summaryContent) {
-        summaryContent.innerHTML = '<p style="color: #6b7280; font-style: italic;">🤖 Generating AI summary... (streaming)</p>';
-      }
-
-      // Use streaming summary generation with progressive UI updates
-      const summaryResult = await ConsultationService.generateSummaryStream(
-        this.consultationId,
-        (partialSummary) => {
-          // Progressive UI update callback - called for each chunk
-          this.updateStreamingSummary(partialSummary);
-        }
-      );
+      const summaryResult = await ConsultationService.generateSummary(this.consultationId);
 
       if (summaryResult.success) {
-        // Validate that summary actually exists
-        if (!summaryResult.summary || summaryResult.summary.trim() === '') {
-          console.error('❌ Backend returned success but summary is empty:', summaryResult);
-          console.log('⚠️ Fallback to polling for summary...');
-          this.startSummaryPolling();
-          return;
-        }
-
-        console.log('✅ Summary streaming complete!');
-        // Final update with complete summary
+        console.log('✅ Summary generated!');
         this.showCompletedState(summaryResult.summary);
       } else {
-        console.log('⚠️ Summary streaming failed:', summaryResult.error);
+        console.log('⚠️ Summary generation failed:', summaryResult.error);
 
         // Check if it's a transcription issue
         if (summaryResult.error?.includes('No transcript') || summaryResult.error?.includes('transcription')) {
@@ -863,23 +679,9 @@ class BrobyVetsSidebar {
         }
       }
     } catch (error) {
-      console.error('❌ Streaming error, falling back to polling...', error);
+      console.error('❌ Error, falling back to polling...', error);
       this.startSummaryPolling();
     }
-  }
-
-  /**
-   * Update summary content during streaming (progressive updates)
-   * Called for each chunk received from the backend
-   * @param {string} partialSummary - Current accumulated summary text
-   */
-  updateStreamingSummary(partialSummary) {
-    const summaryContent = document.getElementById('summaryContent');
-    if (!summaryContent) return;
-
-    // Format and display the partial summary with streaming indicator
-    const formattedSummary = this.formatSummary(partialSummary);
-    summaryContent.innerHTML = formattedSummary + '<span style="color: #6b7280; font-style: italic;"> ▋</span>'; // Blinking cursor effect
   }
 
   startSummaryPolling() {
@@ -936,19 +738,9 @@ class BrobyVetsSidebar {
     console.log('✅ Recording complete', { summaryLength: summary?.length });
     this.showState('completed');
 
-    // Validate summary exists and is not empty
-    if (!summary || summary.trim() === '' || summary === 'undefined') {
-      console.error('❌ Invalid summary received:', summary);
-      const summaryContent = document.getElementById('summaryContent');
-      if (summaryContent) {
-        summaryContent.innerHTML = '<p style="color: #ff6b6b;">⚠️ Summary generation failed. Please try recording again or contact support.</p>';
-      }
-      return;
-    }
-
     // Display the real AI summary from backend
     const summaryContent = document.getElementById('summaryContent');
-    if (summaryContent) {
+    if (summaryContent && summary) {
       // Format the summary for better readability
       const formattedSummary = this.formatSummary(summary);
       summaryContent.innerHTML = formattedSummary;
@@ -957,7 +749,7 @@ class BrobyVetsSidebar {
       // Automatically inject summary into EzyVet after displaying
       this.autoInjectIntoEzyVet(summary);
     } else {
-      console.error('❌ Summary content element not found');
+      console.error('❌ Summary content element not found or summary is empty');
     }
   }
 
@@ -1087,24 +879,6 @@ class BrobyVetsSidebar {
     }
   }
 
-  renderPhotos() {
-    // Clear existing photos from grid (except the add button)
-    const grid = document.getElementById('photosGrid');
-    const addBtn = document.getElementById('addPhotoBtn');
-    if (!grid || !addBtn) return;
-
-    // Remove all photo thumbnails
-    const existingPhotos = grid.querySelectorAll('.photo-thumbnail');
-    existingPhotos.forEach(photo => photo.remove());
-
-    // Re-render all photos
-    this.photos.forEach(photo => {
-      this.addPhotoToGrid(photo.id, photo.url, false);
-    });
-
-    this.updatePhotoCount();
-  }
-
   async deletePhoto(photoId) {
     if (!confirm('Delete this photo?')) return;
 
@@ -1168,19 +942,13 @@ class BrobyVetsSidebar {
     this.updatePhotoCount();
   }
 
-  async startNewConsult() {
+  startNewConsult() {
     console.log('🆕 Starting new consult');
 
     // Stop any active polling
     if (this.summaryPollInterval) {
       clearInterval(this.summaryPollInterval);
       this.summaryPollInterval = null;
-    }
-
-    // CRITICAL FIX: Remove completed consultation from storage
-    if (this.currentPatient && this.consultationId) {
-      console.log('🗑️ Removing completed consultation from storage:', this.currentPatient.id);
-      await this.clearConsultationFromStorage(this.currentPatient.id);
     }
 
     // Reset state
@@ -1211,13 +979,6 @@ class BrobyVetsSidebar {
 
     const summaryText = summaryContent.innerText;
 
-    // Validate summary before insertion
-    if (!summaryText || summaryText.trim() === '' || summaryText === 'undefined') {
-      console.error('❌ Cannot insert invalid summary:', summaryText);
-      alert('❌ Cannot insert summary: No valid summary available.');
-      return;
-    }
-
     // Send message to content script to insert into EzyVet
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]) {
@@ -1245,12 +1006,6 @@ class BrobyVetsSidebar {
   async autoInjectIntoEzyVet(summary) {
     console.log('🎯 Auto-injecting summary into EzyVet History form...');
 
-    // Validate summary before injection
-    if (!summary || summary.trim() === '' || summary === 'undefined') {
-      console.error('❌ Cannot inject invalid summary:', summary);
-      return;
-    }
-
     try {
       // Query for EzyVet tabs
       const tabs = await chrome.tabs.query({ url: '*://*.ezyvet.com/*' });
@@ -1275,15 +1030,6 @@ class BrobyVetsSidebar {
           console.log('💡 User can still manually click "Insert into EzyVet" button');
         } else if (response && response.success) {
           console.log('✅ Summary auto-injected successfully into EzyVet History!');
-
-          // CRITICAL FIX: Remove completed consultation from storage after successful injection
-          if (this.currentPatient && this.consultationId) {
-            console.log('🗑️ Removing completed consultation from storage after injection');
-            this.clearConsultationFromStorage(this.currentPatient.id).catch(err => {
-              console.error('Failed to clear consultation from storage:', err);
-            });
-          }
-
           // Optional: Show a subtle notification to user
           this.showInjectionSuccess();
         } else {

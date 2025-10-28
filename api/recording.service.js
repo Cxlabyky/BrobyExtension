@@ -102,7 +102,7 @@ class RecordingService {
       console.error('❌ Session status update error:', error);
       return {
         success: false,
-        error: error.message || 'Network error'
+        error: error.message
       };
     }
   }
@@ -163,13 +163,13 @@ class RecordingService {
       console.error(`❌ Chunk ${chunkNumber} upload error:`, error);
       return {
         success: false,
-        error: error.message || 'Network error'
+        error: error.message
       };
     }
   }
 
   /**
-   * Upload chunk with retry logic (exponential backoff)
+   * Upload chunk with retry logic
    * @param {string} sessionId
    * @param {Blob} audioBlob
    * @param {number} chunkNumber
@@ -179,37 +179,22 @@ class RecordingService {
    * @returns {Promise<{success: boolean, chunk?: object, error?: string}>}
    */
   static async uploadChunkWithRetry(sessionId, audioBlob, chunkNumber, duration, recordingToken, maxRetries = 3) {
-    try {
-      // Use exponential backoff retry utility matching web app pattern
-      const result = await withRetry(
-        async () => {
-          const uploadResult = await this.uploadChunk(sessionId, audioBlob, chunkNumber, duration, recordingToken);
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const result = await this.uploadChunk(sessionId, audioBlob, chunkNumber, duration, recordingToken);
 
-          // Throw error if upload failed to trigger retry
-          if (!uploadResult.success) {
-            throw new Error(uploadResult.error || 'Upload failed');
-          }
+      if (result.success) {
+        return result;
+      }
 
-          return uploadResult;
-        },
-        {
-          maxAttempts: maxRetries,
-          delay: 1000,
-          backoff: 2,
-          onRetry: (attempt, error) => {
-            console.warn(`⚠️ Retry ${attempt}/${maxRetries} for chunk ${chunkNumber}:`, error.message);
-          }
-        }
-      );
+      // If this was the last attempt, return the error
+      if (attempt === maxRetries - 1) {
+        return result;
+      }
 
-      return result;
-
-    } catch (error) {
-      console.error(`❌ Chunk ${chunkNumber} upload failed after ${maxRetries} attempts:`, error);
-      return {
-        success: false,
-        error: error.message || 'Network error'
-      };
+      // Exponential backoff: 1s, 2s, 4s
+      const delay = Math.pow(2, attempt) * 1000;
+      console.warn(`⚠️ Retry ${attempt + 1}/${maxRetries} for chunk ${chunkNumber} after ${delay}ms`);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 
@@ -266,7 +251,7 @@ class RecordingService {
       console.error('❌ Session completion error:', error);
       return {
         success: false,
-        error: error.message || 'Network error'
+        error: error.message
       };
     }
   }
@@ -306,7 +291,7 @@ class RecordingService {
       console.error('❌ Get chunks error:', error);
       return {
         success: false,
-        error: error.message || 'Network error'
+        error: error.message
       };
     }
   }

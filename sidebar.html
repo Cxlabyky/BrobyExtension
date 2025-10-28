@@ -24,7 +24,6 @@
 
 <!-- Login Modal -->
 <div id="login-modal" class="login-modal">
-<div class="login-modal-content">
 <div class="login-modal-header">
 <h2>Sign In</h2>
 <p class="login-subtitle">Enter your credentials to continue</p>
@@ -50,7 +49,6 @@
 </span>
 </button>
 </div>
-</div>
 
 <!-- Main Content -->
 <div id="main-content" style="display:none">
@@ -70,11 +68,9 @@
 <div class="patient-name" id="recording-patient-name">Bunny</div>
 <div class="patient-details" id="recording-patient-details">Dog • ID: 12345 • 23/10/2025</div>
 </div>
-<div style="text-align:center;margin-bottom:20px">
 <div class="recording-badge">
 <span class="recording-dot"></span>
 <span id="recording-status">Recording</span>
-</div>
 </div>
 <div class="timer" id="timer">00:00:01</div>
 <div class="waveform" id="waveform">
@@ -92,12 +88,11 @@
 <div class="section-header">
 <span>📷</span>
 <span>Photos</span>
-<span class="badge" id="photoCount">0</span>
+<span class="badge" id="photo-count">0</span>
 </div>
-<div class="photos-grid" id="photosGrid">
+<div class="photos-grid">
 <div class="photo-box" id="addPhotoBtn">+</div>
 </div>
-<input type="file" id="photoInput" accept="image/*" multiple style="display:none">
 </div>
 <div class="section">
 <div class="section-header">
@@ -145,7 +140,7 @@
 <span>📝</span>
 <span>AI Summary</span>
 </div>
-<div class="summary-content" id="summaryContent">
+<div class="summary-content" id="summary-content">
 <p><strong>Chief Complaint:</strong> Annual wellness checkup</p>
 <p><strong>History:</strong> 3-year-old spayed female Labrador. No current medications. Up to date on vaccinations.</p>
 <p><strong>Physical Exam:</strong> Alert and responsive. BCS 5/9. Heart rate 90 bpm, respiratory rate 24 bpm. No abnormalities detected.</p>
@@ -163,7 +158,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="utils/retry.js"></script>
 <script src="auth/token-manager.js"></script>
 <script src="auth/auth.js"></script>
 <script src="api/api-client.js"></script>

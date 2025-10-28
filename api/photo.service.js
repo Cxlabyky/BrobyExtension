@@ -169,7 +169,7 @@ class PhotoService {
       console.error('❌ Get photos error:', error);
       return {
         success: false,
-        error: error.message || 'Network error'
+        error: error.message
       };
     }
   }
@@ -214,7 +214,7 @@ class PhotoService {
       console.error('❌ Photo deletion error:', error);
       return {
         success: false,
-        error: error.message || 'Network error'
+        error: error.message
       };
     }
   }
