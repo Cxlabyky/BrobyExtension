@@ -33,6 +33,13 @@ class BrobyVetsSidebar {
   async init() {
     console.log('⚙️ Initializing...');
 
+    // FORCE hide template dropdown on initialization (in case it was left open from previous session)
+    const dropdown = document.getElementById('template-dropdown');
+    if (dropdown) {
+      dropdown.style.display = 'none';
+    }
+    this.templateDropdownOpen = false;
+
     // Check authentication first
     await this.checkAuthentication();
 
@@ -607,10 +614,14 @@ class BrobyVetsSidebar {
     console.log(`🔄 Switching to state: ${state}`);
     this.currentState = state;
 
-    // Close template dropdown when switching states
-    if (this.templateDropdownOpen) {
-      this.hideTemplateDropdown();
+    // FORCE close template dropdown when switching states (especially to ready/processing/completed)
+    const dropdown = document.getElementById('template-dropdown');
+    if (dropdown) {
+      dropdown.style.display = 'none';
     }
+    this.templateDropdownOpen = false;
+    const chevron = document.getElementById('template-chevron');
+    if (chevron) chevron.textContent = '▼';
 
     // Hide all states
     document.getElementById('ready-state').style.display = 'none';
