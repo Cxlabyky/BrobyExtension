@@ -900,11 +900,15 @@ class BrobyVetsSidebar {
             this.displayPartialSummary(data.accumulated);
           },
           onProgress: (progress) => {
-            // Update progress indicator (optional)
+            // Update progress bar with real streaming progress
             console.log('📊 Progress:', Math.round(progress * 100), '%');
+            this.updateProgress(progress * 100);
           },
           onComplete: (data) => {
             console.log('✅ Summary complete:', data.summary);
+            // Set progress to 100%
+            this.updateProgress(100);
+            // Ensure we're showing completed state with final summary
             this.showCompletedState(data.summary);
           },
           onError: (error) => {
@@ -985,26 +989,56 @@ class BrobyVetsSidebar {
 
   /**
    * Display partial summary during streaming (ChatGPT-like progressive display)
+   * Shows directly in completed state, matching web app flow
    * @param {string} text - Accumulated summary text so far
    */
+  /**
+   * Update progress bar during summary generation
+   * @param {number} progress - Progress percentage (0-100)
+   */
+  updateProgress(progress) {
+    const progressBar = document.getElementById('summary-progress-bar');
+    const progressText = document.getElementById('summary-progress-text');
+    const progressContainer = document.getElementById('summary-progress-container');
+
+    if (progressContainer && progressContainer.style.display === 'none') {
+      progressContainer.style.display = 'block';
+    }
+
+    if (progressBar) {
+      progressBar.style.width = progress + '%';
+    }
+    if (progressText) {
+      progressText.textContent = Math.round(progress) + '%';
+    }
+  }
+
   displayPartialSummary(text) {
     if (!text) return;
 
-    // Show the streaming summary section if hidden
-    const streamingSection = document.getElementById('streaming-summary');
-    if (streamingSection && streamingSection.style.display === 'none') {
-      streamingSection.style.display = 'block';
-      console.log('📝 Started streaming summary display');
+    // Switch to completed state if not already there
+    const currentState = document.getElementById('completed-state');
+    if (currentState && currentState.style.display === 'none') {
+      console.log('📝 First chunk arrived, switching to completed state');
+      this.showState('completed');
     }
 
-    // Update the streaming summary content
-    const streamingContent = document.getElementById('streamingSummaryContent');
-    if (streamingContent) {
+    // Update progress bar in processing state (if still visible)
+    const progressContainer = document.getElementById('summary-progress-container');
+    if (progressContainer && progressContainer.style.display !== 'none') {
+      // Estimate progress based on text length (rough heuristic: 500 chars = 100%)
+      const estimatedProgress = Math.min(95, (text.length / 500) * 100);
+      this.updateProgress(estimatedProgress);
+    }
+
+    // Update the summary content in completed state (progressive streaming like ChatGPT)
+    const summaryContent = document.getElementById('summaryContent');
+    if (summaryContent) {
       const formattedText = this.formatSummary(text);
-      streamingContent.innerHTML = formattedText;
+      summaryContent.innerHTML = formattedText;
 
       // Auto-scroll to bottom to show latest content (like ChatGPT)
-      streamingContent.scrollTop = streamingContent.scrollHeight;
+      summaryContent.scrollTop = summaryContent.scrollHeight;
     }
   }
 

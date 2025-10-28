@@ -207,54 +207,11 @@ class RecordingManager {
       // Stop MediaRecorder
       await this.mediaRecorder.stopRecording();
 
-      // CRITICAL: Wait for the final chunk to arrive and be processed
-      console.log('⏳ Waiting for final chunk to arrive and upload...');
+      // Wait briefly for final chunk (reduced from 5-6s to 500ms for faster UX)
+      console.log('⏳ Waiting briefly for final chunk...');
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Track initial state
-      const initialProcessedCount = this.processedChunks.size;
-      let lastProcessedCount = initialProcessedCount;
-      let noChangeCount = 0;
-      let totalWait = 0;
-      const maxWait = 5000; // 5 seconds max for chunk to arrive
-
-      // Wait until we see at least one chunk arrive, or timeout
-      while (totalWait < maxWait) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-        totalWait += 200;
-
-        const currentProcessedCount = this.processedChunks.size;
-
-        if (currentProcessedCount > lastProcessedCount) {
-          console.log(`📦 Chunk arrived! Processed: ${currentProcessedCount}`);
-          lastProcessedCount = currentProcessedCount;
-          noChangeCount = 0;
-        } else {
-          noChangeCount++;
-        }
-
-        // If we've had a chunk arrive and no new chunks for 1 second, we're done
-        if (currentProcessedCount > initialProcessedCount && noChangeCount >= 5) {
-          console.log('✅ Final chunk arrived and stabilized');
-          break;
-        }
-      }
-
-      // Wait for all uploads to complete
-      console.log('⏳ Waiting for all uploads to complete...');
-      let attempts = 0;
-      const maxAttempts = 30;  // 30 seconds max
-
-      while ((this.uploadQueue.length > 0 || this.isUploading) && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        attempts++;
-        console.log(`⏳ Upload queue: ${this.uploadQueue.length} chunks remaining, uploading: ${this.isUploading}`);
-      }
-
-      if (this.uploadQueue.length > 0) {
-        console.warn(`⚠️ Timeout: ${this.uploadQueue.length} chunks not uploaded`);
-      } else {
-        console.log(`✅ All ${this.processedChunks.size} chunks uploaded`);
-      }
+      console.log(`✅ ${this.processedChunks.size} chunks processed, proceeding with completion`)
 
       // Calculate total duration (in seconds)
       const totalDurationMs = this.recordingStartTime

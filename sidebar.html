@@ -146,16 +146,12 @@
 </div>
 <div class="processing-text">Generating AI Summary...</div>
 <div class="processing-subtext">This may take a few moments</div>
-<!-- Streaming summary display -->
-<div class="summary-section" id="streaming-summary" style="display:none; margin-top:20px">
-<div class="summary-header">
-<span>📝</span>
-<span>AI Summary</span>
-<span style="margin-left:auto; font-size:11px; color:#9CA3AF">Streaming...</span>
+<!-- Progress bar for real-time streaming progress -->
+<div class="progress-container" id="summary-progress-container" style="display:none; width:100%; margin-top:24px">
+<div class="progress-bar-bg" style="width:100%; height:6px; background:#E5E7EB; border-radius:3px; overflow:hidden">
+<div class="progress-bar-fill" id="summary-progress-bar" style="width:0%; height:100%; background:linear-gradient(90deg, #1FC7CA 0%, #17A8AA 100%); transition:width 0.3s ease"></div>
 </div>
-<div class="summary-content" id="streamingSummaryContent" style="max-height:300px; overflow-y:auto">
-<!-- Streaming summary chunks will be inserted here -->
-</div>
+<div class="progress-text" id="summary-progress-text" style="margin-top:8px; font-size:12px; color:#666; text-align:center">0%</div>
 </div>
 </div>
 </div>

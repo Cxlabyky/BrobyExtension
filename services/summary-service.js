@@ -178,18 +178,22 @@ class SummaryService {
     // Accumulate chunk
     this.accumulatedSummary += chunkText;
 
+    // Estimate progress based on accumulated text length
+    // Typical summary: 300-600 chars, use 500 as target for 100%
+    const estimatedProgress = Math.min(0.95, this.accumulatedSummary.length / 500);
+
     // Call chunk callback
     if (this.streamingCallbacks.onChunk) {
       this.streamingCallbacks.onChunk({
         chunkText: chunkText,
         accumulated: this.accumulatedSummary,
-        progress: 0.5 // Estimate (no progress info from backend)
+        progress: estimatedProgress
       });
     }
 
     // Call progress callback
     if (this.streamingCallbacks.onProgress) {
-      this.streamingCallbacks.onProgress(0.5); // Estimate
+      this.streamingCallbacks.onProgress(estimatedProgress);
     }
   }
 
