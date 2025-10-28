@@ -1,5 +1,27 @@
 <!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>BrobyVets</title><link rel="stylesheet" href="sidebar.css"></head>
+<html><head><meta charset="UTF-8"><title>BrobyVets</title><link rel="stylesheet" href="sidebar.css">
+<style>
+/* Template dropdown scrollbar styling */
+#template-list {
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E0 #F7FAFC;
+}
+#template-list::-webkit-scrollbar {
+  width: 8px;
+}
+#template-list::-webkit-scrollbar-track {
+  background: #F7FAFC;
+  border-radius: 4px;
+}
+#template-list::-webkit-scrollbar-thumb {
+  background: #CBD5E0;
+  border-radius: 4px;
+}
+#template-list::-webkit-scrollbar-thumb:hover {
+  background: #A0AEC0;
+}
+</style>
+</head>
 <body>
 <div id="brobyvets-sidebar">
 
@@ -104,11 +126,11 @@
 <span id="template-name">Default (No Template)</span>
 </div>
 <!-- Template Dropdown (hidden by default) -->
-<div id="template-dropdown" style="display:none; position:absolute; background:white; border:1px solid #E5E7EB; border-radius:8px; max-height:200px; overflow-y:auto; z-index:1000; width:calc(100% - 32px); margin-top:4px; box-shadow:0 4px 6px rgba(0,0,0,0.1)">
+<div id="template-dropdown" style="display:none; position:absolute; background:white; border:1px solid #E5E7EB; border-radius:8px; max-height:400px; overflow:hidden; z-index:1000; width:calc(100% - 32px); margin-top:4px; box-shadow:0 4px 6px rgba(0,0,0,0.1)">
 <div style="padding:8px; border-bottom:1px solid #E5E7EB">
 <input type="text" id="template-search" placeholder="Search templates..." style="width:100%; padding:6px; border:1px solid #E5E7EB; border-radius:4px; font-size:12px">
 </div>
-<div id="template-list" style="max-height:150px; overflow-y:auto">
+<div id="template-list" style="max-height:350px; overflow-y:auto; overflow-x:hidden">
 <!-- Templates will be dynamically populated -->
 <div style="padding:12px; text-align:center; color:#9CA3AF; font-size:12px">Loading templates...</div>
 </div>
