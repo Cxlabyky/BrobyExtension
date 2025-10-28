@@ -182,6 +182,14 @@ class BrobyVetsSidebar {
         this.hideTemplateDropdown();
       }
     });
+
+    // Reposition dropdown on scroll (since using fixed positioning)
+    const mainContent = document.getElementById('main-content');
+    mainContent?.addEventListener('scroll', () => {
+      if (this.templateDropdownOpen) {
+        this.hideTemplateDropdown(); // Close on scroll for simplicity
+      }
+    });
   }
 
   setupPhotoUpload() {
@@ -454,7 +462,7 @@ class BrobyVetsSidebar {
     console.log('📋 showTemplateDropdown called');
     const dropdown = document.getElementById('template-dropdown');
     const chevron = document.getElementById('template-chevron');
-    const templateSection = document.getElementById('template-header')?.parentElement;
+    const templateSection = document.getElementById('template-section');
 
     if (!dropdown) {
       console.error('❌ template-dropdown element not found!');
@@ -463,16 +471,29 @@ class BrobyVetsSidebar {
 
     console.log('✅ Opening template dropdown, templates count:', this.templates.length);
 
-    // Position dropdown below the section
+    // Position dropdown using FIXED positioning (avoids overflow:hidden clipping)
     if (templateSection) {
       const rect = templateSection.getBoundingClientRect();
-      const sidebarRect = document.getElementById('brobyvets-sidebar').getBoundingClientRect();
 
-      // Position relative to sidebar container
-      dropdown.style.top = (rect.bottom - sidebarRect.top + 4) + 'px';
-      dropdown.style.left = '16px'; // Match section padding
-      dropdown.style.right = '16px'; // Match section padding
-      dropdown.style.width = 'auto'; // Override width calc
+      // Position below the section using viewport coordinates
+      dropdown.style.top = (rect.bottom + 4) + 'px';
+      dropdown.style.left = (rect.left) + 'px';
+      dropdown.style.width = (rect.width) + 'px';
+
+      // Ensure dropdown doesn't go off-screen
+      const maxHeight = window.innerHeight - rect.bottom - 20;
+      if (maxHeight < 400) {
+        dropdown.style.maxHeight = maxHeight + 'px';
+      } else {
+        dropdown.style.maxHeight = '400px';
+      }
+
+      console.log('📍 Dropdown positioned:', {
+        top: dropdown.style.top,
+        left: dropdown.style.left,
+        width: dropdown.style.width,
+        maxHeight: dropdown.style.maxHeight
+      });
     }
 
     this.templateDropdownOpen = true;
@@ -874,9 +895,9 @@ class BrobyVetsSidebar {
         {
           templateId: this.selectedTemplate?.id || null,
           onChunk: (data) => {
-            // Update UI with streaming chunks (optional - for real-time display)
+            // Update UI with streaming chunks for real-time display (like ChatGPT)
             console.log('📝 Summary chunk:', data.accumulated.length, 'chars');
-            // Optionally show partial summary: this.displayPartialSummary(data.accumulated);
+            this.displayPartialSummary(data.accumulated);
           },
           onProgress: (progress) => {
             // Update progress indicator (optional)
@@ -960,6 +981,31 @@ class BrobyVetsSidebar {
       }
 
     }, 5000); // Poll every 5 seconds
+  }
+
+  /**
+   * Display partial summary during streaming (ChatGPT-like progressive display)
+   * @param {string} text - Accumulated summary text so far
+   */
+  displayPartialSummary(text) {
+    if (!text) return;
+
+    // Show the streaming summary section if hidden
+    const streamingSection = document.getElementById('streaming-summary');
+    if (streamingSection && streamingSection.style.display === 'none') {
+      streamingSection.style.display = 'block';
+      console.log('📝 Started streaming summary display');
+    }
+
+    // Update the streaming summary content
+    const streamingContent = document.getElementById('streamingSummaryContent');
+    if (streamingContent) {
+      const formattedText = this.formatSummary(text);
+      streamingContent.innerHTML = formattedText;
+
+      // Auto-scroll to bottom to show latest content (like ChatGPT)
+      streamingContent.scrollTop = streamingContent.scrollHeight;
+    }
   }
 
   showCompletedState(summary) {
