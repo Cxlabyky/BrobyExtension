@@ -95,12 +95,24 @@
 </div>
 </div>
 <div class="section">
-<div class="section-header">
+<div class="section-header" id="template-header" style="cursor:pointer">
 <span>📋</span>
 <span>Template</span>
-<span style="margin-left:auto">▼</span>
+<span style="margin-left:auto" id="template-chevron">▼</span>
 </div>
-<div class="section-content">General Checkup</div>
+<div class="section-content" id="template-display" style="cursor:pointer">
+<span id="template-name">General Checkup</span>
+</div>
+<!-- Template Dropdown (hidden by default) -->
+<div id="template-dropdown" style="display:none; position:absolute; background:white; border:1px solid #E5E7EB; border-radius:8px; max-height:200px; overflow-y:auto; z-index:1000; width:calc(100% - 32px); margin-top:4px; box-shadow:0 4px 6px rgba(0,0,0,0.1)">
+<div style="padding:8px; border-bottom:1px solid #E5E7EB">
+<input type="text" id="template-search" placeholder="Search templates..." style="width:100%; padding:6px; border:1px solid #E5E7EB; border-radius:4px; font-size:12px">
+</div>
+<div id="template-list" style="max-height:150px; overflow-y:auto">
+<!-- Templates will be dynamically populated -->
+<div style="padding:12px; text-align:center; color:#9CA3AF; font-size:12px">Loading templates...</div>
+</div>
+</div>
 </div>
 <button class="btn-primary" id="submitBtn">✓ Submit</button>
 </div>
@@ -157,15 +169,29 @@
 </div>
 </div>
 
+<!-- Core Configuration and Auth -->
 <script src="config.js"></script>
 <script src="auth/token-manager.js"></script>
 <script src="auth/auth.js"></script>
+
+<!-- API Services -->
 <script src="api/api-client.js"></script>
 <script src="api/consultation.service.js"></script>
 <script src="api/recording.service.js"></script>
 <script src="api/photo.service.js"></script>
+<script src="api/template.service.js"></script>
+
+<!-- Utilities -->
+<script src="utils/duplicate-detector.js"></script>
+
+<!-- Services -->
+<script src="services/summary-service.js"></script>
+
+<!-- Recording -->
 <script src="recording/media-recorder.service.js"></script>
 <script src="recording/recording-manager.js"></script>
+
+<!-- Main Sidebar Logic -->
 <script src="sidebar.js"></script>
 </body>
 </html>

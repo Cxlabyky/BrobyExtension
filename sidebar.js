@@ -22,6 +22,11 @@ class BrobyVetsSidebar {
     this.activeConsultations = new Map(); // patientId -> consultation state
     this.activeConsultationId = null; // Currently viewing consultation
 
+    // Template management
+    this.templates = [];
+    this.selectedTemplate = null;
+    this.templateDropdownOpen = false;
+
     this.init();
   }
 
@@ -34,8 +39,9 @@ class BrobyVetsSidebar {
     // Setup event listeners
     this.setupEventListeners();
 
-    // If authenticated, start patient polling
+    // If authenticated, load templates and start polling
     if (this.isAuthenticated) {
+      await this.loadTemplates();
       await this.checkStorage();
       this.startPolling();
     }
@@ -138,6 +144,42 @@ class BrobyVetsSidebar {
 
     // Photo upload event listeners
     this.setupPhotoUpload();
+
+    // Template dropdown event listeners
+    document.getElementById('template-header')?.addEventListener('click', () => {
+      if (this.templateDropdownOpen) {
+        this.hideTemplateDropdown();
+      } else {
+        this.showTemplateDropdown();
+      }
+    });
+
+    document.getElementById('template-display')?.addEventListener('click', () => {
+      if (this.templateDropdownOpen) {
+        this.hideTemplateDropdown();
+      } else {
+        this.showTemplateDropdown();
+      }
+    });
+
+    // Template search
+    document.getElementById('template-search')?.addEventListener('input', (e) => {
+      this.populateTemplateList(e.target.value);
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      const templateSection = document.querySelector('.section');
+      const dropdown = document.getElementById('template-dropdown');
+
+      if (
+        this.templateDropdownOpen &&
+        dropdown &&
+        !templateSection?.contains(e.target)
+      ) {
+        this.hideTemplateDropdown();
+      }
+    });
   }
 
   setupPhotoUpload() {
@@ -359,6 +401,110 @@ class BrobyVetsSidebar {
     });
   }
 
+  // Template Management
+  async loadTemplates() {
+    try {
+      console.log('📋 Loading templates...');
+
+      const result = await TemplateService.getTemplatesWithCache();
+
+      if (result.success) {
+        this.templates = result.templates || [];
+        console.log('✅ Templates loaded:', this.templates.length);
+
+        // Set default template if available
+        if (this.templates.length > 0 && !this.selectedTemplate) {
+          this.selectedTemplate = this.templates[0];
+          this.updateTemplateDisplay();
+        }
+      } else {
+        console.error('❌ Failed to load templates:', result.error);
+      }
+    } catch (error) {
+      console.error('❌ Load templates error:', error);
+    }
+  }
+
+  updateTemplateDisplay() {
+    const templateName = document.getElementById('template-name');
+    if (templateName && this.selectedTemplate) {
+      templateName.textContent = this.selectedTemplate.name;
+    }
+  }
+
+  showTemplateDropdown() {
+    const dropdown = document.getElementById('template-dropdown');
+    const chevron = document.getElementById('template-chevron');
+
+    if (!dropdown) return;
+
+    this.templateDropdownOpen = true;
+    dropdown.style.display = 'block';
+    if (chevron) chevron.textContent = '▲';
+
+    // Populate template list
+    this.populateTemplateList();
+  }
+
+  hideTemplateDropdown() {
+    const dropdown = document.getElementById('template-dropdown');
+    const chevron = document.getElementById('template-chevron');
+
+    if (!dropdown) return;
+
+    this.templateDropdownOpen = false;
+    dropdown.style.display = 'none';
+    if (chevron) chevron.textContent = '▼';
+  }
+
+  populateTemplateList(searchQuery = '') {
+    const templateList = document.getElementById('template-list');
+    if (!templateList) return;
+
+    // Filter templates by search query
+    const filtered = searchQuery
+      ? this.templates.filter(t =>
+          t.name.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : this.templates;
+
+    if (filtered.length === 0) {
+      templateList.innerHTML = '<div style="padding:12px; text-align:center; color:#9CA3AF; font-size:12px">No templates found</div>';
+      return;
+    }
+
+    // Build template items
+    templateList.innerHTML = filtered
+      .map(
+        template => `
+        <div class="template-item" data-template-id="${template.id}" style="padding:10px; cursor:pointer; border-bottom:1px solid #F3F4F6; font-size:13px; ${this.selectedTemplate?.id === template.id ? 'background:#F0F9FF' : ''}">
+          <div style="font-weight:500; color:#111827">${template.name}</div>
+          ${template.category ? `<div style="font-size:11px; color:#6B7280; margin-top:2px">${template.category}</div>` : ''}
+        </div>
+      `
+      )
+      .join('');
+
+    // Add click handlers
+    templateList.querySelectorAll('.template-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const templateId = item.getAttribute('data-template-id');
+        this.selectTemplate(templateId);
+      });
+    });
+  }
+
+  selectTemplate(templateId) {
+    const template = this.templates.find(t => t.id === templateId);
+
+    if (template) {
+      console.log('📋 Template selected:', template.name);
+      this.selectedTemplate = template;
+      this.updateTemplateDisplay();
+      this.hideTemplateDropdown();
+    }
+  }
+
   // State Management
   showState(state) {
     console.log(`🔄 Switching to state: ${state}`);
@@ -549,7 +695,8 @@ class BrobyVetsSidebar {
     const result = await this.recordingManager.startRecording({
       name: this.currentPatient.name,
       id: this.currentPatient.id,
-      species: this.currentPatient.species
+      species: this.currentPatient.species,
+      templateId: this.selectedTemplate?.id || null  // Include selected template
     });
 
     if (!result.success) {
@@ -655,28 +802,46 @@ class BrobyVetsSidebar {
 
     console.log('✅ Recording submitted');
 
-    // TRIGGER summary generation
-    console.log('🤖 Triggering AI summary generation...');
+    // TRIGGER summary generation with HTTP SSE streaming
+    console.log('🤖 Triggering AI summary generation with HTTP SSE streaming...');
 
     try {
-      const summaryResult = await ConsultationService.generateSummary(this.consultationId);
+      const summaryResult = await summaryService.generateSummary(
+        this.consultationId,
+        {
+          templateId: this.selectedTemplate?.id || null,
+          onChunk: (data) => {
+            // Update UI with streaming chunks (optional - for real-time display)
+            console.log('📝 Summary chunk:', data.accumulated.length, 'chars');
+            // Optionally show partial summary: this.displayPartialSummary(data.accumulated);
+          },
+          onProgress: (progress) => {
+            // Update progress indicator (optional)
+            console.log('📊 Progress:', Math.round(progress * 100), '%');
+          },
+          onComplete: (data) => {
+            console.log('✅ Summary complete:', data.summary);
+            this.showCompletedState(data.summary);
+          },
+          onError: (error) => {
+            console.error('❌ Summary error:', error);
 
-      if (summaryResult.success) {
-        console.log('✅ Summary generated!');
-        this.showCompletedState(summaryResult.summary);
-      } else {
-        console.log('⚠️ Summary generation failed:', summaryResult.error);
-
-        // Check if it's a transcription issue
-        if (summaryResult.error?.includes('No transcript') || summaryResult.error?.includes('transcription')) {
-          // Show error to user
-          this.showState('ready');
-          alert('⚠️ Recording failed to transcribe.\n\nPossible causes:\n- Recording too short (need 15+ seconds)\n- No audio detected\n- Background transcription issue\n\nPlease try recording again and speak clearly into the microphone.');
-        } else {
-          // Other errors - fallback to polling
-          console.log('⚠️ Fallback to polling...');
-          this.startSummaryPolling();
+            // Check if it's a transcription issue
+            if (error.message?.includes('No transcript') || error.message?.includes('transcription')) {
+              this.showState('ready');
+              alert('⚠️ Recording failed to transcribe.\n\nPossible causes:\n- Recording too short (need 15+ seconds)\n- No audio detected\n- Background transcription issue\n\nPlease try recording again and speak clearly into the microphone.');
+            } else {
+              alert('❌ Summary generation failed: ' + error.message);
+              this.showState('recording');
+            }
+          }
         }
+      );
+
+      if (!summaryResult.success) {
+        // Fallback to polling if HTTP SSE streaming fails
+        console.warn('⚠️ HTTP SSE streaming unavailable, falling back to polling');
+        this.startSummaryPolling();
       }
     } catch (error) {
       console.error('❌ Error, falling back to polling...', error);

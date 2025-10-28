@@ -5,6 +5,8 @@ const CONFIG = {
   // Production backend URL
   BACKEND_URL: 'https://backend-production-a35dc.up.railway.app',
 
+  // NOTE: HTTP SSE streaming used for summaries (not WebSocket)
+
   // API version
   API_VERSION: 'v1',
 
@@ -24,6 +26,7 @@ const CONFIG = {
     CONSULTATIONS: '/consultations',
     CONSULTATION_BY_ID: (id) => `/consultations/${id}`,
     GENERATE_SUMMARY: (id) => `/consultations/${id}/generate-summary`,
+    GENERATE_SUMMARY_STREAM: (id) => `/consultations/${id}/generate-summary-stream`,
     PROCESSING_STATUS: (id) => `/consultations/${id}/processing-status`,
     UPLOAD_PHOTO: (id) => `/consultations/${id}/photos`,
 
@@ -34,6 +37,10 @@ const CONFIG = {
     COMPLETE_RECORDING: (sessionId) => `/recordings/sessions/${sessionId}/complete`,
     STOP_RECORDING: (sessionId) => `/recordings/sessions/${sessionId}/stop`,
     GET_CHUNKS: (sessionId) => `/recordings/sessions/${sessionId}/chunks`,
+
+    // Templates
+    TEMPLATES: '/templates',
+    TEMPLATE_BY_ID: (id) => `/templates/${id}`,
   },
 
   // Storage keys
