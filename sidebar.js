@@ -1145,8 +1145,8 @@ class BrobyVetsSidebar {
     // Update the summary content in completed state (progressive streaming like ChatGPT)
     const summaryContent = document.getElementById('summaryContent');
     if (summaryContent) {
-      const formattedText = this.formatSummary(text);
-      summaryContent.innerHTML = formattedText;
+      // Use .value for textarea instead of .innerHTML
+      summaryContent.value = text; // Plain text for textarea
 
       // Auto-scroll to bottom to show latest content (like ChatGPT)
       summaryContent.scrollTop = summaryContent.scrollHeight;
@@ -1162,11 +1162,9 @@ class BrobyVetsSidebar {
     if (summaryContent && summary) {
       // Format the summary for better readability
       const formattedSummary = this.formatSummary(summary);
-      summaryContent.innerHTML = formattedSummary;
-      console.log('📝 Summary displayed in UI');
-
-      // Automatically inject summary into EzyVet after displaying
-      this.autoInjectIntoEzyVet(summary);
+      // Use .value for textarea instead of .innerHTML
+      summaryContent.value = summary; // Store plain text in textarea
+      console.log('📝 Summary displayed in editable textarea');
     } else {
       console.error('❌ Summary content element not found or summary is empty');
     }
@@ -1391,12 +1389,13 @@ class BrobyVetsSidebar {
   }
 
   insertIntoEzyVet() {
-    console.log('📝 Inserting summary into EzyVet');
+    console.log('📝 Inserting summary into EzyVet (manual injection)');
 
     const summaryContent = document.getElementById('summaryContent');
     if (!summaryContent) return;
 
-    const summaryText = summaryContent.innerText;
+    // Get text from textarea value (user may have edited it)
+    const summaryText = summaryContent.value;
 
     // Send message to content script to insert into EzyVet
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -1419,6 +1418,9 @@ class BrobyVetsSidebar {
   }
 
   /**
+   * @deprecated - Auto-injection removed. Users must click "Insert into EzyVet" button manually.
+   * This method is kept for backward compatibility but is no longer called.
+   *
    * Automatically inject summary into EzyVet History form
    * @param {string} summary - The AI-generated summary text
    */
