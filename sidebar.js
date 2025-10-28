@@ -454,6 +454,7 @@ class BrobyVetsSidebar {
     console.log('📋 showTemplateDropdown called');
     const dropdown = document.getElementById('template-dropdown');
     const chevron = document.getElementById('template-chevron');
+    const templateSection = document.getElementById('template-header')?.parentElement;
 
     if (!dropdown) {
       console.error('❌ template-dropdown element not found!');
@@ -461,6 +462,19 @@ class BrobyVetsSidebar {
     }
 
     console.log('✅ Opening template dropdown, templates count:', this.templates.length);
+
+    // Position dropdown below the section
+    if (templateSection) {
+      const rect = templateSection.getBoundingClientRect();
+      const sidebarRect = document.getElementById('brobyvets-sidebar').getBoundingClientRect();
+
+      // Position relative to sidebar container
+      dropdown.style.top = (rect.bottom - sidebarRect.top + 4) + 'px';
+      dropdown.style.left = '16px'; // Match section padding
+      dropdown.style.right = '16px'; // Match section padding
+      dropdown.style.width = 'auto'; // Override width calc
+    }
+
     this.templateDropdownOpen = true;
     dropdown.style.display = 'block';
     if (chevron) chevron.textContent = '▲';
