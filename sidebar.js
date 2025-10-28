@@ -869,6 +869,9 @@ class BrobyVetsSidebar {
     // Show processing state
     this.showState('processing');
 
+    // Show progress bar immediately
+    this.updateProgress(0);
+
     // Stop recording and complete session
     const result = await this.recordingManager.stopRecording();
 
