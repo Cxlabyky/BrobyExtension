@@ -880,19 +880,26 @@ class BrobyVetsSidebar {
     // Start progress tracking from 0%
     this.updateProgress(0);
 
+    // Smoothly animate to 10% at start (simulate initial processing)
+    await this.animateProgress(0, 10, 300);
+
     // Track transcription progress while stopping recording
     const totalChunks = this.recordingManager.processedChunks.size || 1;
     let lastChunkCount = 0;
+    let currentProgress = 10;
 
-    // Poll chunk progress during stopRecording (0% → 50%)
+    // Poll chunk progress during stopRecording (10% → 45%)
     const progressInterval = setInterval(() => {
       const currentChunks = this.recordingManager.processedChunks.size;
       if (currentChunks > lastChunkCount) {
         lastChunkCount = currentChunks;
-        // Map chunks to 0-50% progress
-        const transcriptionProgress = Math.min(50, (currentChunks / Math.max(totalChunks, 1)) * 50);
-        this.updateProgress(transcriptionProgress);
-        console.log(`📊 Transcription progress: ${currentChunks}/${totalChunks} chunks = ${transcriptionProgress}%`);
+        // Map chunks to 10-45% progress (35% range)
+        const targetProgress = Math.min(45, 10 + (currentChunks / Math.max(totalChunks, 1)) * 35);
+        if (targetProgress > currentProgress) {
+          currentProgress = targetProgress;
+          this.updateProgress(currentProgress);
+          console.log(`📊 Transcription progress: ${currentChunks}/${totalChunks} chunks = ${Math.round(currentProgress)}%`);
+        }
       }
     }, 200);
 
@@ -902,8 +909,8 @@ class BrobyVetsSidebar {
     // Stop progress polling
     clearInterval(progressInterval);
 
-    // Set progress to 50% (transcription complete)
-    this.updateProgress(50);
+    // Smoothly animate from current to 50% (transcription complete)
+    await this.animateProgress(currentProgress, 50, 400);
 
     if (!result.success) {
       alert(`❌ Failed to submit recording: ${result.error}`);
@@ -922,8 +929,11 @@ class BrobyVetsSidebar {
     // TRIGGER summary generation with HTTP SSE streaming
     console.log('🤖 Triggering AI summary generation with HTTP SSE streaming...');
 
-    // Set progress to 60% (summary generation starting)
-    this.updateProgress(60);
+    // Smoothly animate to 55% (preparing summary)
+    await this.animateProgress(50, 55, 300);
+
+    // Then animate to 60% (summary generation starting)
+    await this.animateProgress(55, 60, 300);
 
     let firstChunk = true;
 
@@ -932,12 +942,12 @@ class BrobyVetsSidebar {
         this.consultationId,
         {
           templateId: this.selectedTemplate?.id || null,
-          onChunk: (data) => {
-            // First chunk = 70% progress, switch to completed state
+          onChunk: async (data) => {
+            // First chunk = animate to 70% progress, switch to completed state
             if (firstChunk) {
               firstChunk = false;
               console.log('📝 First summary chunk arrived - switching to completed state at 70%');
-              this.updateProgress(70);
+              await this.animateProgress(60, 70, 400);
             }
 
             // Update UI with streaming chunks (already switches state in displayPartialSummary)
@@ -950,10 +960,10 @@ class BrobyVetsSidebar {
             console.log('📊 Summary progress:', Math.round(mappedProgress), '%');
             this.updateProgress(mappedProgress);
           },
-          onComplete: (data) => {
+          onComplete: async (data) => {
             console.log('✅ Summary complete:', data.summary);
-            // Set progress to 100%
-            this.updateProgress(100);
+            // Smoothly animate from 95% to 100%
+            await this.animateProgress(95, 100, 500);
             // Ensure we're showing completed state with final summary
             this.showCompletedState(data.summary);
           },
@@ -1057,6 +1067,40 @@ class BrobyVetsSidebar {
     if (progressText) {
       progressText.textContent = Math.round(progress) + '%';
     }
+  }
+
+  /**
+   * Smoothly animate progress bar from start to end value
+   * @param {number} start - Starting progress percentage
+   * @param {number} end - Ending progress percentage
+   * @param {number} duration - Animation duration in milliseconds
+   * @returns {Promise<void>}
+   */
+  animateProgress(start, end, duration) {
+    return new Promise((resolve) => {
+      const startTime = Date.now();
+      const diff = end - start;
+
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        // Ease-out function for smooth deceleration
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        const currentValue = start + (diff * easeOut);
+
+        this.updateProgress(currentValue);
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          this.updateProgress(end);
+          resolve();
+        }
+      };
+
+      animate();
+    });
   }
 
   displayPartialSummary(text) {
