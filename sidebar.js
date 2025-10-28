@@ -469,35 +469,45 @@ class BrobyVetsSidebar {
       return;
     }
 
+    // Check if template section is visible (only exists in recording state)
+    if (!templateSection || templateSection.offsetParent === null) {
+      console.warn('⚠️ Template section not visible, cannot show dropdown');
+      return;
+    }
+
     console.log('✅ Opening template dropdown, templates count:', this.templates.length);
 
     // Position dropdown using FIXED positioning (avoids overflow:hidden clipping)
-    if (templateSection) {
-      const rect = templateSection.getBoundingClientRect();
+    const rect = templateSection.getBoundingClientRect();
 
-      dropdown.style.left = (rect.left) + 'px';
-      dropdown.style.width = (rect.width) + 'px';
-
-      // Fixed height for dropdown
-      const dropdownHeight = 300; // Fixed reasonable height
-
-      // Position dropdown DIRECTLY ABOVE the template section
-      // rect.top is the top of the template section, subtract dropdown height to position above
-      const dropdownTop = rect.top - dropdownHeight - 8; // 8px gap
-
-      // Ensure dropdown doesn't go above viewport
-      const finalTop = Math.max(10, dropdownTop); // At least 10px from top
-
-      dropdown.style.top = finalTop + 'px';
-      dropdown.style.maxHeight = dropdownHeight + 'px';
-
-      console.log('📍 Dropdown positioned ABOVE template section:', {
-        templateTop: rect.top + 'px',
-        dropdownTop: finalTop + 'px',
-        dropdownHeight: dropdownHeight + 'px',
-        gap: (rect.top - finalTop - dropdownHeight) + 'px'
-      });
+    // Verify template section is actually on screen (has real dimensions)
+    if (rect.width === 0 || rect.height === 0) {
+      console.warn('⚠️ Template section has no dimensions, skipping dropdown');
+      return;
     }
+
+    dropdown.style.left = (rect.left) + 'px';
+    dropdown.style.width = (rect.width) + 'px';
+
+    // Fixed height for dropdown
+    const dropdownHeight = 300; // Fixed reasonable height
+
+    // Position dropdown DIRECTLY ABOVE the template section
+    // rect.top is the top of the template section, subtract dropdown height to position above
+    const dropdownTop = rect.top - dropdownHeight - 8; // 8px gap
+
+    // Ensure dropdown doesn't go above viewport
+    const finalTop = Math.max(10, dropdownTop); // At least 10px from top
+
+    dropdown.style.top = finalTop + 'px';
+    dropdown.style.maxHeight = dropdownHeight + 'px';
+
+    console.log('📍 Dropdown positioned ABOVE template section:', {
+      templateTop: rect.top + 'px',
+      dropdownTop: finalTop + 'px',
+      dropdownHeight: dropdownHeight + 'px',
+      gap: (rect.top - finalTop - dropdownHeight) + 'px'
+    });
 
     this.templateDropdownOpen = true;
     dropdown.style.display = 'block';
@@ -596,6 +606,11 @@ class BrobyVetsSidebar {
   showState(state) {
     console.log(`🔄 Switching to state: ${state}`);
     this.currentState = state;
+
+    // Close template dropdown when switching states
+    if (this.templateDropdownOpen) {
+      this.hideTemplateDropdown();
+    }
 
     // Hide all states
     document.getElementById('ready-state').style.display = 'none';
