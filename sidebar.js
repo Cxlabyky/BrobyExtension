@@ -991,7 +991,7 @@ class BrobyVetsSidebar {
           onError: (error) => {
             console.error('❌ Summary error:', error);
 
-            // Show error gracefully in textarea instead of disruptive alert
+            // Show error gracefully in textarea
             this.showState('completed');
 
             const summaryContent = document.getElementById('summaryContent');
@@ -999,20 +999,8 @@ class BrobyVetsSidebar {
               let message = '';
               const errorMsg = error.message || String(error);
 
-              // Detect non-medical content
-              if (errorMsg.includes('NO_MEDICAL_CONTENT')) {
-                message = '⚠️ No Medical Information Detected\n\n' +
-                          'This recording does not appear to contain medical consultation information.\n\n' +
-                          'Please ensure you are discussing:\n' +
-                          '• Patient symptoms or conditions\n' +
-                          '• Examination findings and vital signs\n' +
-                          '• Diagnostic procedures or test results\n' +
-                          '• Treatment plans and medications\n' +
-                          '• Follow-up care instructions\n\n' +
-                          'Tip: Avoid casual conversation and focus on clinical information.';
-              }
               // Detect transcription failures
-              else if (errorMsg.includes('No transcript') || errorMsg.includes('transcription')) {
+              if (errorMsg.includes('No transcript') || errorMsg.includes('transcription')) {
                 message = '⚠️ Recording Transcription Failed\n\n' +
                           'Your audio could not be transcribed successfully.\n\n' +
                           'Possible causes:\n' +
@@ -1034,9 +1022,9 @@ class BrobyVetsSidebar {
               summaryContent.value = message;
 
               // Style the textarea to indicate error state
-              summaryContent.style.color = '#DC2626'; // Red text
+              summaryContent.style.color = '#DC2626';
               summaryContent.style.fontStyle = 'italic';
-              summaryContent.style.backgroundColor = '#FEF2F2'; // Light red background
+              summaryContent.style.backgroundColor = '#FEF2F2';
             }
           }
         }
@@ -1166,6 +1154,31 @@ class BrobyVetsSidebar {
   displayPartialSummary(text) {
     if (!text) return;
 
+    // Check if this is a NO_MEDICAL_CONTENT response from backend
+    if (text.includes('NO_MEDICAL_CONTENT:')) {
+      console.log('⚠️ Non-medical content detected from backend');
+      this.showState('completed');
+
+      const summaryContent = document.getElementById('summaryContent');
+      if (summaryContent) {
+        summaryContent.value = '⚠️ No Medical Information Detected\n\n' +
+                               'This recording does not contain sufficient medical information for documentation.\n\n' +
+                               'Please ensure you are discussing:\n' +
+                               '• Patient symptoms or conditions\n' +
+                               '• Examination findings and vital signs\n' +
+                               '• Diagnostic procedures or test results\n' +
+                               '• Treatment plans and medications\n' +
+                               '• Follow-up care instructions\n\n' +
+                               'Tip: Focus on clinical information rather than casual conversation.';
+
+        // Style as warning
+        summaryContent.style.color = '#DC2626';
+        summaryContent.style.fontStyle = 'italic';
+        summaryContent.style.backgroundColor = '#FEF2F2';
+      }
+      return;
+    }
+
     // Switch to completed state if not already there
     const currentState = document.getElementById('completed-state');
     if (currentState && currentState.style.display === 'none') {
@@ -1184,6 +1197,11 @@ class BrobyVetsSidebar {
     // Update the summary content in completed state (progressive streaming like ChatGPT)
     const summaryContent = document.getElementById('summaryContent');
     if (summaryContent) {
+      // Reset styling for normal summary
+      summaryContent.style.color = '';
+      summaryContent.style.fontStyle = '';
+      summaryContent.style.backgroundColor = '';
+
       // Use .value for textarea instead of .innerHTML
       summaryContent.value = text; // Plain text for textarea
 
