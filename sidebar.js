@@ -873,11 +873,33 @@ class BrobyVetsSidebar {
     // Show processing state
     this.showState('processing');
 
-    // Show progress bar immediately
+    // Start progress tracking from 0%
     this.updateProgress(0);
+
+    // Track transcription progress while stopping recording
+    const totalChunks = this.recordingManager.processedChunks.size || 1;
+    let lastChunkCount = 0;
+
+    // Poll chunk progress during stopRecording (0% → 50%)
+    const progressInterval = setInterval(() => {
+      const currentChunks = this.recordingManager.processedChunks.size;
+      if (currentChunks > lastChunkCount) {
+        lastChunkCount = currentChunks;
+        // Map chunks to 0-50% progress
+        const transcriptionProgress = Math.min(50, (currentChunks / Math.max(totalChunks, 1)) * 50);
+        this.updateProgress(transcriptionProgress);
+        console.log(`📊 Transcription progress: ${currentChunks}/${totalChunks} chunks = ${transcriptionProgress}%`);
+      }
+    }, 200);
 
     // Stop recording and complete session
     const result = await this.recordingManager.stopRecording();
+
+    // Stop progress polling
+    clearInterval(progressInterval);
+
+    // Set progress to 50% (transcription complete)
+    this.updateProgress(50);
 
     if (!result.success) {
       alert(`❌ Failed to submit recording: ${result.error}`);
@@ -896,20 +918,33 @@ class BrobyVetsSidebar {
     // TRIGGER summary generation with HTTP SSE streaming
     console.log('🤖 Triggering AI summary generation with HTTP SSE streaming...');
 
+    // Set progress to 60% (summary generation starting)
+    this.updateProgress(60);
+
+    let firstChunk = true;
+
     try {
       const summaryResult = await summaryService.generateSummary(
         this.consultationId,
         {
           templateId: this.selectedTemplate?.id || null,
           onChunk: (data) => {
-            // Update UI with streaming chunks for real-time display (like ChatGPT)
+            // First chunk = 70% progress, switch to completed state
+            if (firstChunk) {
+              firstChunk = false;
+              console.log('📝 First summary chunk arrived - switching to completed state at 70%');
+              this.updateProgress(70);
+            }
+
+            // Update UI with streaming chunks (already switches state in displayPartialSummary)
             console.log('📝 Summary chunk:', data.accumulated.length, 'chars');
             this.displayPartialSummary(data.accumulated);
           },
           onProgress: (progress) => {
-            // Update progress bar with real streaming progress
-            console.log('📊 Progress:', Math.round(progress * 100), '%');
-            this.updateProgress(progress * 100);
+            // Map summary progress from 70% to 95% (save 95-100 for completion)
+            const mappedProgress = 70 + (progress * 25);
+            console.log('📊 Summary progress:', Math.round(mappedProgress), '%');
+            this.updateProgress(mappedProgress);
           },
           onComplete: (data) => {
             console.log('✅ Summary complete:', data.summary);
