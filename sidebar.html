@@ -136,7 +136,7 @@
 <div class="patient-details" id="processing-patient-details">Dog • ID: 12345 • 23/10/2025</div>
 </div>
 <div class="processing-content">
-<div class="processing-spinner">
+<div class="processing-spinner" id="processing-spinner" style="display:none">
 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#1FC7CA" stroke-width="2">
 <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
 <path d="M12 2 A10 10 0 0 1 22 12" stroke-linecap="round">
@@ -184,7 +184,7 @@
 </div>
 
 <!-- Template Dropdown (FIXED positioning outside all scrollable containers) -->
-<div id="template-dropdown" style="display:none; position:fixed; background:white; border:1px solid #E5E7EB; border-radius:8px; max-height:400px; overflow:hidden; z-index:10000; box-shadow:0 4px 12px rgba(0,0,0,0.15)">
+<div id="template-dropdown" style="display:none; position:fixed; background:white; border:1px solid #E5E7EB; border-radius:8px; max-height:400px; z-index:10000; box-shadow:0 4px 12px rgba(0,0,0,0.15)">
 <div style="padding:8px; border-bottom:1px solid #E5E7EB">
 <input type="text" id="template-search" placeholder="Search templates..." style="width:100%; padding:6px; border:1px solid #E5E7EB; border-radius:4px; font-size:12px">
 </div>
