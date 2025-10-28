@@ -480,19 +480,23 @@ class BrobyVetsSidebar {
       dropdown.style.left = (rect.left) + 'px';
       dropdown.style.width = (rect.width) + 'px';
 
-      // Ensure dropdown doesn't go off-screen
-      const maxHeight = window.innerHeight - rect.bottom - 20;
-      if (maxHeight < 400) {
-        dropdown.style.maxHeight = maxHeight + 'px';
-      } else {
-        dropdown.style.maxHeight = '400px';
+      // Calculate available space and adjust inner list height
+      const availableHeight = window.innerHeight - rect.bottom - 20;
+      const searchHeight = 48; // Search input + padding
+      const maxListHeight = Math.max(150, Math.min(350, availableHeight - searchHeight));
+
+      // Update inner template-list max-height instead of dropdown
+      const templateListElem = document.getElementById('template-list');
+      if (templateListElem) {
+        templateListElem.style.maxHeight = maxListHeight + 'px';
       }
 
       console.log('📍 Dropdown positioned:', {
         top: dropdown.style.top,
         left: dropdown.style.left,
         width: dropdown.style.width,
-        maxHeight: dropdown.style.maxHeight
+        listMaxHeight: maxListHeight + 'px',
+        availableHeight: availableHeight + 'px'
       });
     }
 
