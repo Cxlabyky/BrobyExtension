@@ -184,11 +184,11 @@
 </div>
 
 <!-- Template Dropdown (FIXED positioning outside all scrollable containers) -->
-<div id="template-dropdown" style="display:none; position:fixed; background:white; border:1px solid #E5E7EB; border-radius:8px; z-index:10000; box-shadow:0 4px 12px rgba(0,0,0,0.15)">
-<div style="padding:8px; border-bottom:1px solid #E5E7EB">
+<div id="template-dropdown" style="display:none; position:fixed; background:white; border:1px solid #E5E7EB; border-radius:8px; z-index:10000; box-shadow:0 4px 12px rgba(0,0,0,0.15); max-height:350px; display:flex; flex-direction:column">
+<div style="padding:8px; border-bottom:1px solid #E5E7EB; flex-shrink:0">
 <input type="text" id="template-search" placeholder="Search templates..." style="width:100%; padding:6px; border:1px solid #E5E7EB; border-radius:4px; font-size:12px">
 </div>
-<div id="template-list" style="max-height:350px; overflow-y:scroll !important; overflow-x:hidden">
+<div id="template-list" style="flex:1; overflow-y:scroll !important; overflow-x:hidden; min-height:0">
 <!-- Templates will be dynamically populated -->
 <div style="padding:12px; text-align:center; color:#9CA3AF; font-size:12px">Loading templates...</div>
 </div>

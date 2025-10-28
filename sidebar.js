@@ -475,32 +475,27 @@ class BrobyVetsSidebar {
     if (templateSection) {
       const rect = templateSection.getBoundingClientRect();
 
-      // Position below the section using viewport coordinates
-      dropdown.style.top = (rect.bottom + 4) + 'px';
       dropdown.style.left = (rect.left) + 'px';
       dropdown.style.width = (rect.width) + 'px';
 
-      // Calculate available space - if dropdown would go off screen, position it ABOVE instead
-      const availableBelow = window.innerHeight - rect.bottom - 20;
-      const dropdownHeight = 400; // Max dropdown height with search + list
+      // Fixed height for dropdown
+      const dropdownHeight = 300; // Fixed reasonable height
 
-      if (availableBelow < dropdownHeight) {
-        // Not enough space below, position ABOVE the template section
-        dropdown.style.top = (rect.top - dropdownHeight - 4) + 'px';
-        console.log('⬆️ Positioning dropdown ABOVE template section');
-      } else {
-        // Enough space below, position normally
-        dropdown.style.top = (rect.bottom + 4) + 'px';
-        console.log('⬇️ Positioning dropdown BELOW template section');
-      }
+      // Position dropdown DIRECTLY ABOVE the template section
+      // rect.top is the top of the template section, subtract dropdown height to position above
+      const dropdownTop = rect.top - dropdownHeight - 8; // 8px gap
 
-      console.log('📍 Dropdown positioned:', {
-        top: dropdown.style.top,
-        left: dropdown.style.left,
-        width: dropdown.style.width,
-        availableBelow: availableBelow + 'px',
-        templateSectionBottom: rect.bottom + 'px',
-        windowHeight: window.innerHeight + 'px'
+      // Ensure dropdown doesn't go above viewport
+      const finalTop = Math.max(10, dropdownTop); // At least 10px from top
+
+      dropdown.style.top = finalTop + 'px';
+      dropdown.style.maxHeight = dropdownHeight + 'px';
+
+      console.log('📍 Dropdown positioned ABOVE template section:', {
+        templateTop: rect.top + 'px',
+        dropdownTop: finalTop + 'px',
+        dropdownHeight: dropdownHeight + 'px',
+        gap: (rect.top - finalTop - dropdownHeight) + 'px'
       });
     }
 
