@@ -146,21 +146,21 @@ class BrobyVetsSidebar {
     this.setupPhotoUpload();
 
     // Template dropdown event listeners
-    document.getElementById('template-header')?.addEventListener('click', () => {
-      if (this.templateDropdownOpen) {
-        this.hideTemplateDropdown();
-      } else {
-        this.showTemplateDropdown();
-      }
-    });
+    const templateHeader = document.getElementById('template-header');
+    const templateDisplay = document.getElementById('template-display');
 
-    document.getElementById('template-display')?.addEventListener('click', () => {
+    // Single click handler for both header and display
+    const toggleDropdown = (e) => {
+      e.stopPropagation(); // Prevent event bubbling
       if (this.templateDropdownOpen) {
         this.hideTemplateDropdown();
       } else {
         this.showTemplateDropdown();
       }
-    });
+    };
+
+    templateHeader?.addEventListener('click', toggleDropdown);
+    templateDisplay?.addEventListener('click', toggleDropdown);
 
     // Template search
     document.getElementById('template-search')?.addEventListener('input', (e) => {
@@ -169,13 +169,15 @@ class BrobyVetsSidebar {
 
     // Close dropdown when clicking outside
     document.addEventListener('click', (e) => {
-      const templateSection = document.querySelector('.section');
       const dropdown = document.getElementById('template-dropdown');
 
+      // Check if click is outside both the dropdown and the trigger elements
       if (
         this.templateDropdownOpen &&
         dropdown &&
-        !templateSection?.contains(e.target)
+        !dropdown.contains(e.target) &&
+        !templateHeader?.contains(e.target) &&
+        !templateDisplay?.contains(e.target)
       ) {
         this.hideTemplateDropdown();
       }
@@ -410,18 +412,36 @@ class BrobyVetsSidebar {
 
       if (result.success) {
         this.templates = result.templates || [];
-        console.log('✅ Templates loaded:', this.templates.length);
+        console.log('✅ Templates loaded:', this.templates.length, this.templates);
 
         // Set default template if available
         if (this.templates.length > 0 && !this.selectedTemplate) {
           this.selectedTemplate = this.templates[0];
+          console.log('✅ Default template selected:', this.selectedTemplate.name);
           this.updateTemplateDisplay();
+        } else if (this.templates.length === 0) {
+          console.warn('⚠️ No templates found in database');
+          // Update UI to show no templates available
+          const templateName = document.getElementById('template-name');
+          if (templateName) {
+            templateName.textContent = 'No templates available';
+          }
         }
       } else {
         console.error('❌ Failed to load templates:', result.error);
+        // Update UI to show error
+        const templateName = document.getElementById('template-name');
+        if (templateName) {
+          templateName.textContent = 'Error loading templates';
+        }
       }
     } catch (error) {
       console.error('❌ Load templates error:', error);
+      // Update UI to show error
+      const templateName = document.getElementById('template-name');
+      if (templateName) {
+        templateName.textContent = 'Error loading templates';
+      }
     }
   }
 
@@ -433,11 +453,16 @@ class BrobyVetsSidebar {
   }
 
   showTemplateDropdown() {
+    console.log('📋 showTemplateDropdown called');
     const dropdown = document.getElementById('template-dropdown');
     const chevron = document.getElementById('template-chevron');
 
-    if (!dropdown) return;
+    if (!dropdown) {
+      console.error('❌ template-dropdown element not found!');
+      return;
+    }
 
+    console.log('✅ Opening template dropdown, templates count:', this.templates.length);
     this.templateDropdownOpen = true;
     dropdown.style.display = 'block';
     if (chevron) chevron.textContent = '▲';
@@ -458,8 +483,12 @@ class BrobyVetsSidebar {
   }
 
   populateTemplateList(searchQuery = '') {
+    console.log('📋 populateTemplateList called, searchQuery:', searchQuery, 'templates:', this.templates.length);
     const templateList = document.getElementById('template-list');
-    if (!templateList) return;
+    if (!templateList) {
+      console.error('❌ template-list element not found!');
+      return;
+    }
 
     // Filter templates by search query
     const filtered = searchQuery
@@ -467,6 +496,8 @@ class BrobyVetsSidebar {
           t.name.toLowerCase().includes(searchQuery.toLowerCase())
         )
       : this.templates;
+
+    console.log('📋 Filtered templates:', filtered.length);
 
     if (filtered.length === 0) {
       templateList.innerHTML = '<div style="padding:12px; text-align:center; color:#9CA3AF; font-size:12px">No templates found</div>';
